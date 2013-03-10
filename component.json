@@ -1,0 +1,26 @@
+{
+    "resource" :{
+        "pythia_axis_js"                : "pythia.axis.js",
+        "pythia_canvas_js"              : "pythia.canvas.js",
+        "pythia_chart.bar_js"           : "pythia.chart.bar.js",
+        "pythia_chart_js"               : "pythia.chart.js",
+        "pythia_chart.line_js"          : "pythia.chart.line.js",
+        "pythia_chart.pie_js"           : "pythia.chart.pie.js",
+        "pythia_chart.sankey_js"        : "pythia.chart.sankey.js",
+        "pythia_class_js"               : "pythia.class.js",
+        "pythia_color_js"               : "pythia.color.js",
+        "pythia_element.circleslice_js" : "pythia.element.circleslice.js",
+        "pythia_element_js"             : "pythia.element.js",
+        "pythia_element.path_js"        : "pythia.element.path.js",
+        "pythia_element.rect_js"        : "pythia.element.rect.js",
+        "pythia_element.window_js"      : "pythia.element.window.js",
+        "pythia_js"                     : "pythia_js",
+        "pythia_line_js"                : "pythia.line.js",
+        "pythia_port_js"                : "pythia.port.js",
+        "pythia_renderer.canvas_js"     : "pythia.renderer.canvas.js",
+        "pythia_renderer_js"            : "pythia.renderer.js",
+        "pythia_renderer.raphael_js"    : "pythia.renderer.raphael.js",
+        "pythia_text_js"                : "pythia.text.js"
+    }
+
+}

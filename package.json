@@ -1,0 +1,23 @@
+{
+  "name": "pythia",
+  "version": "0.0.0",
+  "description": "Browser based graphing library",
+  "main": "src/pythia.js",
+  "scripts": {
+    "test": "./jake.sh test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:DelphiSolutions/pythia.git"
+  },
+  "author": "Krishna Rajendran <krishna@emptybox.org> (http://emptybox.org)",
+  "license": "MIT",
+  "readmeFilename": "README",
+  "dependencies": {
+    "jake": "~0.5.8"
+  },
+  "devDependencies": {
+    "mocha": "~1.8.1",
+    "testacular": "~0.6.0"
+  }
+}
