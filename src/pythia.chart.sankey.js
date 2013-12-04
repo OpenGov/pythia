@@ -95,7 +95,7 @@
                               , [n.x + (n.tx - n.x) / 3 * 2, n.ty]
                               , [n.tx, n.ty]
                               ]
-                            , p.chainStyle(self.style, {
+                            , p.Style(self.style, {
                                     'width': h
                                   , color: 0xff4444
                                   , pointerEvents: 'none'
@@ -150,7 +150,7 @@
                     var rect = self._r.Rect(
                           [node.__pythia.x, node.__pythia.y]
                         , [nodeWidth, node.__pythia.height]
-                        , p.chainStyle(self.style, {color: boxColor})
+                        , p.Style(self.style, {color: boxColor})
                         ).on('mouseover', on).on('mouseout', off).on('click')
                         .addChild(self._r.Text(
                               node.__pythia.label
@@ -228,7 +228,7 @@
                                , [x + (tx - x) / 3 * 2, ty]
                                , [tx, ty]
                                ]
-                             , p.chainStyle(self.style, {
+                             , p.Style(self.style, {
                                    'width': l.height
                                  , color:   l.color
                                })
@@ -242,7 +242,7 @@
                                            , [x + (tx - x) / 3 * 2, ty]
                                            , [tx, ty]
                                            ]
-                                         , p.chainStyle(self.style, { 'width': l.height
+                                         , p.Style(self.style, { 'width': l.height
                                                                      , color: 0xff4444
                                                                      , pointerEvents: 'none'
                                                                     })

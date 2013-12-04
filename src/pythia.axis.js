@@ -1,17 +1,18 @@
 pythia.element.element('axis', pythia.Class(pythia.element, {
     repath: function () {
         (function (options) {
-            var style = this.computeStyle('axis');
-            var textStyle = this.computeStyle('axis text');
-            var textYStyle = this.computeStyle('axis ytext');
+            var style      = pythia.defaultStyle.axis,
+                textStyle  = pythia.defaultStyle['axis text'],
+                textYStyle = pythia.defaultStyle['axis ytext'];
 
-            var position  = options.position   || 'bottom';
-            var type      = options.type       || 'ordinal';
-            var stepCount = options.stepCount  || 5;
-            var format    = options.format     || function (d) { return d; };
-            var longest   = options.longest    || 100;
-            var shortest   = options.shortest  || 0;
-            var labels    = options.labels     || [];
+            var position  = options.position   || 'bottom',
+                type      = options.type       || 'ordinal',
+                stepCount = options.stepCount  || 5,
+                format    = options.format     || function (d) { return d; },
+                longest   = options.longest    || 100,
+                shortest  = options.shortest   || 0,
+                labels    = options.labels     || [],
+                i;
 
             switch (position) {
                 case 'bottom':
@@ -32,19 +33,25 @@ pythia.element.element('axis', pythia.Class(pythia.element, {
             if (type === 'ordinal') {
                 stepSize = 100 / (labels.length - 1);
 
+                if (labels.length === 1) {
+                    position = 50;
+                } else {
+                    position = 0;
+                }
 
-                var position = 0;
-                for (var i = 0; i < labels.length; ++i) {
-                    el = labels[i];
-                    //this.line([[position,100 - 2], [position,100 + 2]], style);
-                    this.text(el, [position, 35], textStyle);
+                var labelHeight = pythia.measureText(options.label, options.labelStyle)[1];
+
+                for (i = 0; i < labels.length; ++i) {
+                    var text = labels[i];
+
+                    this.text(text, [position, 55], textStyle);
                     position += stepSize;
                 }
 
                 this.text(
                     options.label,
-                    [50, 33],
-                    pythia.style(options.labelStyle)
+                    [50, labelHeight + 2],
+                    pythia.Style(options.labelStyle)
                 );
 
             } else {
@@ -53,17 +60,17 @@ pythia.element.element('axis', pythia.Class(pythia.element, {
 
                 var yStep = 100 / stepCount;
 
-                for (var i = 0; i <= stepCount ; i++) {
+                for (i = 0; i <= stepCount ; i++) {
                     var v = format(i * vStep + shortest);
                     var y = 100 - i * yStep;
                     this.text(v, [90, y],
-                        pythia.chainStyle(textYStyle,{'text-align':'right'}));
-                    if (v == 0) {
+                        pythia.Style(textYStyle, {textAlign:'right'}));
+                    if (v === 0) {
                         this.line([[0,y], [100,y]], style);
                     }
                 }
 
-                this.text(options.label, [19, 40], pythia.style(options.labelStyle))
+                this.text(options.label, [19, 40], pythia.Style(options.labelStyle))
                         .rotate(Math.PI / 2);
             }
 
@@ -74,47 +81,48 @@ pythia.element.element('axis', pythia.Class(pythia.element, {
 }));
 
 pythia.axisScale = function (longest, shortest, stepCount) {
-    var digits = Math.floor(pythia.log10(longest));
-    var str  = (Math.floor(longest).toString());
-    var str2 = str.charAt(0) + str.charAt(1);
+    var digits = Math.floor(pythia.log10(longest)),
+        firstDigit, secondDigit,
+        str    = (Math.floor(longest).toString()),
+        str2   = '';
 
-    for (var i = 2; i < str.length; ++i) {
-        str2 += '0';
-    }
-    if (str2 != longest) {
-        var pow = digits - 1 || 1;
-        longest = str2.toInt() + Math.pow(10, pow);
+    if (digits > 1) {
+        secondDigit = parseInt(str.charAt(1), 10) + 1;
+
+        if (secondDigit === 10) {
+            firstDigit  = parseInt(str.charAt(0), 10) + 1;
+            secondDigit = '0';
+        } else {
+            firstDigit = str.charAt(0);
+        }
+
+        str2 += firstDigit + secondDigit;
+
+        for (var i = 2; i < str.length; ++i) {
+            str2 += '0';
+        }
+        longest = parseInt(str2, 10);
     }
 
-    longest = Math.floor(longest);
     var vStep;
 
-    // TODO this is terrible. Solve the 0 problem gracefully
-    // If we straddle the axis;
     if (longest > 0 && shortest < 0) {
-        var ratio5 = (-1 * shortest) /
-                     (longest - shortest) * stepCount;
+        yRange        = (longest - shortest);
+        positiveTicks = Math.ceil(longest / yRange * (stepCount - 1));
+        negativeTicks = Math.ceil(-shortest / yRange * (stepCount - 1));
 
-        var rounded = Math.floor(ratio5);
-
-
-        if (rounded !== 0) {
-            vStep = (-1 * shortest / rounded);
-            longest = vStep * stepCount + shortest;
-        } else {
-            vStep = (longest-shortest)/stepCount;
-            vStep = vStep + (1/stepCount * (vStep + shortest));
-            shortest = -vStep;
-            longest = vStep * stepCount + shortest;
-        }
+        vStep = yRange / (positiveTicks + negativeTicks - 1);
+        shortest = -vStep * negativeTicks;
+        longest = vStep * positiveTicks;
     } else {
-        if (shortest > 0) {
+        if (shortest >= 0) {
             shortest = 0;
             vStep = longest / stepCount;
         } else {
-            vStep = (longest-shortest)/stepCount;
+            longest = 0;
+            vStep = -shortest / stepCount;
         }
     }
 
     return [longest, shortest, vStep];
-}
+};

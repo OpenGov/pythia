@@ -6,11 +6,8 @@
             this.stacked    = this._opts.stacked;
 
             this.color      = p.accessor(this._opts.color, 0xffffff);
-            this.lineColor  = p.accessor(this._opts.color, this.style('color'));
-
-            this.barHoverIn   = p.accessor(this._opts.barHoverIn , p.doNil);
-            this.barHoverOut  = p.accessor(this._opts.barHoverOut, p.doNil);
-            this.bars = {}
+            this.lineColor  = p.accessor(this._opts.color, this._style.color);
+            this.bars = {};
 
             this.refresh();
         },
@@ -21,13 +18,11 @@
           , ['stacked', false]
         ],
 
-        //This may be getting convoluted. Might be better off with separate
-        //refresh functions
         refresh: function() {
-            //TODO HACK in all graphs
-            this.clear();
-            if (_.isEmpty(this._data._data))
+            if (_.isEmpty(this._data._data)) {
+                this.clear();
                 return;
+            }
 
             var self             = this
               , cumulativeHeight = []
@@ -79,10 +74,9 @@
 
                     var bar = self.rect( [x, y]
                                        , [barWidth, height]
-                                       , p.style({color: usePColor.hex()})
+                                       , {color: usePColor.hex()}
                                        ).addClass('bar')
                                         .data(element, line, key, lineNo);
-                                           
                     ++i;
                 });
             }

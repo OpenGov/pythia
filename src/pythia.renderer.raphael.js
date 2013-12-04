@@ -7,7 +7,7 @@
         if (el._raph) {
             el._raph.remove();
         }
-    }
+    };
 
     r.init = function (container, element) {
         var r = this;
@@ -75,25 +75,30 @@
         });
 
         pythia.element.extend('calcTransform', function (cumulativeT) {
-            cumulativeT = cumulativeT || this._parent._totalT;
+            var scaleX, scaleY, cumulativeS;
+            // Fix for bug sometimes on pie (esp. large initial views)
+            // neither cumulativeT nor _parent._totalT will be initialized
+            // so default to identity matrix
+            // TODO: Find specific cause
+            cumulativeT = cumulativeT || this._parent._totalT || [1,0,0,0,1,0,0,0,1];
             this._scale = 1;
 
             if (this.hasClass('port')) {
-                var scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
-                var scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
+                scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
+                scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
                 var sx = ((this._r._size[0] - this._dim[0]) / 100) / scaleX;
                 var sy = ((this._r._size[1] - this._dim[1]) / 100) / scaleY;
-                this.scaleT = [ sx, 0 , 0
-                              , 0 , sy, 0
-                              , 0 , 0 , 1
+                this.scaleT = [ sx, 0 , 0,
+                                0 , sy, 0,
+                                0 , 0 , 1
                               ];
             }
 
-            if (this._style && this._style('size') === 'fixed') {
-                var cumulativeS = p.mCopy(cumulativeT);
+            if (this._style.size === 'fixed') {
+                cumulativeS = p.mCopy(cumulativeT);
 
-                var scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
-                var scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
+                scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
+                scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
                 cumulativeS[0] = cumulativeT[0] / scaleX;
                 cumulativeS[1] = cumulativeT[1] / scaleX;
                 cumulativeS[3] = cumulativeT[3] / scaleY;
@@ -102,34 +107,33 @@
                 cumulativeS = cumulativeT;
             }
 
-
             var pos = [this.translateT[2], this.translateT[5]];
 
             if (this.hasClass('text')) {
                 if (this._raph) {
-                    if (this._style && this._style('baseline') === 'bottom') {
+                    if (this._style.baseline === 'bottom') {
                         var box = this._raph.getBBox(true);
-                        pos[1] -= box.height/2
+                        pos[1] -= box.height/2;
                     } else
-                    if (this._style && this._style('baseline') === 'top') {
+                    if (this._style.baseline === 'top') {
                         var box = this._raph.getBBox(true);
-                        pos[1] += box.height/2
+                        pos[1] += box.height/2;
                     }
                 }
             }
 
             var newPos;
-            if (this._style && this._style('position') === 'fixed-horizontal') {
+            if (this._style && this._style['position'] === 'fixed-horizontal') {
 
                 var transformedPos = p.mMulV(cumulativeT, pos);
                 newPos = [transformedPos[0], pos[1]];
 
-            } else if (this._style && this._style('position') === 'fixed-vertical') {
+            } else if (this._style && this._style['position'] === 'fixed-vertical') {
 
                 var transformedPos = p.mMulV(cumulativeT, pos);
                 newPos = [pos[0], transformedPos[1]];
 
-            } else if (this._style && this._style('position') === 'fixed') {
+            } else if (this._style && this._style['position'] === 'fixed') {
 
                 newPos = pos;
 
@@ -137,7 +141,7 @@
                 newPos = p.mMulV(cumulativeT, pos);
             }
 
-            if (this._style && this._style('yrelative') === 'bottom') {
+            if (this._style && this._style['yrelative'] === 'bottom') {
                 newPos[1] = this._r._size[1] - newPos[1];
             }
 
@@ -150,7 +154,7 @@
             totalT[5] = newPos[1];
 
 
-            if (this._style && this._style('size') === 'proportional') {
+            if (this._style.size === 'proportional') {
                 var scaleX = Math.sqrt(totalT[0] * totalT[0] + totalT[1] * totalT[1]);
                 var scaleY = Math.sqrt(totalT[3] * totalT[3] + totalT[4] * totalT[4]);
 
@@ -182,39 +186,28 @@
         });
 
         pythia.element.extend('updateTransform', function (cumulativeT) {
-            var totalT = this.calcTransform(cumulativeT);
+            var totalT = this.calcTransform(cumulativeT),
+                i, len, path;
 
-            //Workaround for bad line scaling in firefox and older webkit
-            //and IE
+            // Workaround for bad line scaling in firefox and older webkit
+            // and IE
             if (this.hasClass('line') && this._vertices.length) {
-                var tv = p.mMulV(this._totalT, this._vertices[0]);
-                var pathM = ['M' + tv[0] + ',' + tv[1] + 'L'];
-                var pathL = [];
-                var pathHack1 = ['L'];
-                //var pathHack2 = [];
-                for (var i = 0, len = this._vertices.length; i < len; ++i) {
-                    v = this._vertices[i];
-                    tv = p.mMulV(this._totalT ,v);
-                    //pathL.push(tv[0]);
-                    //pathL.push(tv[1]);
+                var vert = pythia.mMulV(this._totalT, this._vertices[0]);
 
-                    // TODO: Use stroke width for this hack
-                    pathHack1.push(tv[0]);
-                    pathHack1.push(tv[1]/* + 1*/);
-                    //pathHack2.unshift(tv[1] - 1);
-                    //pathHack2.unshift(tv[0]);
+                path = ['M' + vert[0] + ' ' + vert[1] + 'L'];
+
+                for (i = 0, len = this._vertices.length; i < len; ++i) {
+                    vert = pythia.mMulV(this._totalT ,this._vertices[i]);
+                    path.push(vert[0]);
+                    path.push(vert[1]);
                 }
-                this._raph.node.style.strokeWidth = this._style('line-width') || this.lineWidth || 2;
-                //pathHack2.unshift('L');
-                var joinM = pathM.join('');
-                var joinL = pathL.join(',');
 
-                //this._raph.attr('path', joinM + joinL);
-                this._raph.attr('path', joinM + pathHack1.join(','));// + pathHack2.join(','));
-                //this._raph.attr('fill', p.color(this._style('strokeColor')).html());
+                this._raph.node.style.strokeWidth = this._style.strokeWidth || this.strokeWidth || 2;
+
+                this._raph.attr('path', path.join(' '));
             } else if (this.hasClass('path')) {
-                var path = [];
-                for (var i = 0, len = this._path.length; i < len; ++i) {
+                path = [];
+                for (i = 0, len = this._path.length; i < len; ++i) {
                     var pt = this._path[i];
                     if (_.isArray(pt)) {
                         path.push(pythia.mMulV(this._totalT, pt));
@@ -223,7 +216,9 @@
                     }
                 }
 
-                this._raph.attr('path', path);
+                if (len) {
+                    this._raph.attr('path', path);
+                }
             } else if (this.hasClass('circleSlice') && this._pos) {
                 var scaleX = Math.sqrt(totalT[0] * totalT[0] + totalT[1] * totalT[1]);
                 var scaleY = Math.sqrt(totalT[3] * totalT[3] + totalT[4] * totalT[4]);
@@ -295,15 +290,6 @@
             return this;
         });
 
-        function invokeUpdateTransform(child) {
-        }
-
-        pythia.element.extend('measure', function () {
-            var box = this._raph.getBBox(true);
-            return [box.width, box.height];
-        });
-
-
         pythia.elements.path.extend('arc', function (pos, radius, startAngle, angle) {
             var self = this;
             var endAngle = startAngle + angle;
@@ -311,14 +297,14 @@
 
             var a = 0;
             while (a < angle) {
-                arc(startAngle, (angle - a) < p2 ? (angle - a) : p2)
+                arc(startAngle, (angle - a) < p2 ? (angle - a) : p2);
                 a += Math.PI/2;
                 startAngle += Math.PI/2;
             }
 
             function arc(start, angle) {
-                var endPoint = [radius * Math.cos(startAngle + angle) + pos[0]
-                               ,radius * Math.sin(startAngle + angle) + pos[1]];
+                var endPoint = [radius * Math.cos(startAngle + angle) + pos[0],
+                                radius * Math.sin(startAngle + angle) + pos[1]];
                 self._path.push('A', radius, radius, startAngle, 0, 1, endPoint);
             }
 
@@ -331,7 +317,7 @@
                   this._raph.node.parentNode.insertBefore
                     (this._raph.node, this._parent._raph.node.nextSibling);
                 } else {
-                  this._raph.node.parentNode(appendChild, this._raph);
+                  this._raph.node.parentNode.appendChild(this._raph.node);
                 }
             }
         });
@@ -346,41 +332,42 @@
                 }
             }
         });
-
-        //this.__super.init(container, element);
-
-        this.updateTransform(false);
-    }
+    };
 
     r.path = function(path, style, raphPath) {
-        style = style || p.style({})
-        var fill = (typeof(style('fill')) === 'undefined') ? true : style('fill');
-        var alpha = style('alpha') || 1;
+        style = style || {};
 
-        var attr = {};
+        var fill    = (typeof(style.fill) === 'undefined') ? true : style.fill,
+            attr    = {};
 
-        attr.fill            = fill ? (p.color(style('color')).html() || p.color(style('fillColor')).html())  : "none";
-        if (style('stroke')) {
-            attr.stroke          = p.color(style('strokeColor')).html();
-            attr['stroke-width'] = style('line-width') || 1;
+        attr.fill   = fill ? (p.color(style.color).html() || p.color(style.fillColor).html())  : "none";
+        if (style.stroke !== false) {
+            attr.stroke          = p.color(style.strokeColor).html();
+            attr['stroke-width'] = style.strokeWidth || 1;
 
-            if (style('stroke-opacity')) {
-                attr['stroke-opacity'] = style('stroke-opacity');
+            if (style.strokeOpacity) {
+                attr['stroke-opacity'] = style.strokeOpacity;
             }
         } else {
             attr.stroke = "none";
         }
-        attr.opacity = alpha;
-        //attr.opacity = style('fillOpacity');
+
+        if (style.opacity) {
+            attr.opacity = style.opacity;
+        }
+
+        if (style.fillOpacity) {
+            attr['fill-opacity'] = style.fillOpacity;
+        }
 
         if (path[0] === 'F') {
-            if (style('font-size')) {
-                attr['font-size'] = style('font-size');
+            if (style.fontSize) {
+                attr['font-size'] = style.fontSize;
             }
-            if (style('text-align') === 'right') {
+            if (style.textAlign === 'right') {
                 attr['text-anchor'] = 'end';
             }
-            if (style('text-align') === 'left') {
+            if (style.textAlign === 'left') {
                 attr['text-anchor'] = 'start';
             }
 
@@ -389,67 +376,63 @@
                 raphPath.remove();
             }
             raphPath = this._paper.text(0, 0, path[1]).attr(attr);
-            var baseline = style('baseline') || 'middle';
+            style.baseline = style.baseline || 'middle';
 
             var box = raphPath.getBBox(true);
 
-            if (style('baseline') === 'bottom') {
+            if (style.baseline === 'bottom') {
                 raphPath.translate(0, -box.height/2);
             }
-            if (style('baseline') === 'top') {
+            if (style.baseline === 'top') {
                 raphPath.translate(0, box.height/2);
             }
         } else {
-            if (raphPath) {
-                raphPath.attr('path', path)
-                raphPath
-                        .attr(attr);
+            if (raphPath && path.length) {
+                raphPath.attr('path', path);
+                raphPath.attr(attr);
             } else {
                 raphPath = this._paper.path(path).attr(attr);
             }
-            if (style('stroke-dasharray')) {
-                raphPath.node.setAttribute('stroke-dasharray', style('stroke-dasharray'));
+            if (style['stroke-dasharray']) {
+                raphPath.node.setAttribute('stroke-dasharray', style['stroke-dasharray']);
             }
         }
 
         if (attr.stroke !== 'none') {
             raphPath.node.style.strokeWidth = attr['stroke-width'];
-            raphPath.node.style.vectorEffect = 'non-scaling-stroke';
+            //raphPath.node.style.vectorEffect = 'non-scaling-stroke';
         }
 
-        if (style('pointerEvents') === 'none') {
-            raphPath.node.style['pointer-events'] = 'none';
-            raphPath.node.style['pointerEvents'] = 'none';
+        if (style.pointerEvents === 'none') {
+            raphPath.node.style.pointerEvents = 'none';
         }
 
-        if (style('z-index')) {
-            raphPath.node.style['z-index'] = style('z-index');
-            raphPath.node.style['zIndex'] = style('z-index');
+        if (style.zIndex) {
+            raphPath.node.style.zIndex = style.zIndex;
         }
 
         this.render();
 
         return raphPath;
-    }
+    };
 
     r.size = function(dim) {
         this._paper.setSize(dim[0], dim[1]);
         this.__super.size.call(this, dim);
-    }
+    };
 
     function arc(cx, cy, r, startAngle, angle, steps) {
-        var theta           = angle / (steps - 1)
-          , tangetialFactor = Math.tan(theta)
-          , radialFactor    = Math.cos(theta)
-          , x               = r * Math.cos(startAngle)
-          , y               = r * Math.sin(startAngle)
-          , vertices        = []
-          , tx
-          , ty
-          , i;
+        var theta           = angle / (steps - 1),
+            tangetialFactor = Math.tan(theta),
+            radialFactor    = Math.cos(theta),
+            x               = r * Math.cos(startAngle),
+            y               = r * Math.sin(startAngle),
+            vertices        = [],
+            tx,
+            ty,
+            i;
 
         for(i = 0; i < steps; ++i) {
-            //vertices.push(new THREE.Vector3(x + cx, y + cy, 0));
             vertices.push([x + cx, y + cy]);
 
             tx = -y;

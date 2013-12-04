@@ -1,15 +1,16 @@
-(function(p) {
+(function(pythia, undefined) {
     var elements = {};
 
-    p.element = p.Class({
+    pythia.element = pythia.Class({
         init: function () {
             this._w       = 0;
             this._h       = 0;
             this._postion = [0,0];
 
-            this._events = {};
+            this._events   = {};
             this._children = {};
-            this._opts = {};
+            this._opts     = {};
+            this._style    = {};
 
             this._class = {};
 
@@ -27,11 +28,10 @@
         },
 
         options: function (defaults, opts) {
-            for (var key in defaults) {
+            var key, opt, val;
+            for (key in defaults) {
                 dflt = defaults[key];
-                var opt = dflt[0]
-                  , val
-                  ;
+                opt  = dflt[0];
 
                 if (typeof opts[opt] === 'undefined') {
                     val = dflt[1];
@@ -45,8 +45,8 @@
                 this._opts[opt] = val;
             }
 
-            for (var opt in opts) {
-                var val = opts[opt];
+            for (opt in opts) {
+                val = opts[opt];
                 if (!this._opts[opt]) {
                     this._opts[opt] = val;
                 }
@@ -70,7 +70,7 @@
         },
 
         pushScale: function () {
-            this.scaleStack.push(p.mCopy(this.scaleT));
+            this.scaleStack.push(pythia.mCopy(this.scaleT));
         },
 
         popScale: function () {
@@ -82,7 +82,7 @@
         },
 
         pushT: function () {
-            this.transformStack.push([p.mCopy(this.translateT), p.mCopy(this.scaleT)]);
+            this.transformStack.push([pythia.mCopy(this.translateT), pythia.mCopy(this.scaleT)]);
         },
 
         popT: function () {
@@ -99,9 +99,9 @@
         scale: function (s, relative) {
             relative = relative || 'center';
 
-            var point  = [0,0];
-            var center = this.center();
-            var dim    = this.bounds();
+            var point  = [0,0],
+                center = this.center(),
+                dim    = this.bounds();
 
             switch (relative) {
                 case 'bottom':
@@ -155,8 +155,8 @@
             return this;
         },
 
-        parent: function(p) {
-            if (!p) {
+        parent: function(parnt) {
+            if (!parnt) {
                 return this._parent;
             }
 
@@ -164,10 +164,40 @@
                 delete this._parent._children[this._id];
             }
 
-            p._children[this._id] = this;
-            this._parent = p;
+            parnt._children[this._id] = this;
+            this._parent = parnt;
 
             return this;
+        },
+
+        setStyle: function (style, value) {
+            if (value !== this.getStyle(style)) {
+                this._style[style] = value;
+                this.refresh();
+                this.updateTransform();
+            }
+        },
+
+        setStyles: function (styles) {
+            var style, value,
+                mutated = false;
+
+            for (style in styles) { if (styles.hasOwnProperty(style)) {
+                value = styles[style];
+                if (value !== this._style[style]) {
+                    mutated = true;
+                    this._style[style] = value;
+                }
+            }}
+
+            if (mutated) {
+                this.refresh();
+                this.updateTransform();
+            }
+        },
+
+        getStyle: function (style) {
+            return this._style[style];
         },
 
         end: function () {
@@ -194,7 +224,9 @@
         },
 
         refresh: function() {
-            this.repath && this.repath();
+            if (this.repath) {
+                this.repath();
+            }
             return this;
         },
 
@@ -203,17 +235,18 @@
                 q = q.split('.');
             }
 
-            var elements = this._r._classes[q[0]];
+            var elements    = this._r._classes[q[0]],
+                subElements = [];
 
             var i;
             var len = q.length;
             for (i = 1; i < len; ++i) {
-                elements = _.filter( elements, function (el) { return el.hasClass(q[i]); } );
+                elements = _.filter(elements, filterByClass);
             }
 
             elements =
                 _.filter(elements, function (e) {
-                    while (e = e._parent) {
+                    while ((e = e._parent)) {
                         if (e === this) {
                             return true;
                         }
@@ -222,23 +255,10 @@
                 }, this);
 
             return elements;
-        },
 
-        style: function(style, set) {
-            if (!arguments.length) {
-                return this._style;
+            function filterByClass(el) {
+                return el.hasClass(q[i]);
             }
-
-            if (arguments.length === 2) {
-                this._style(style, set);
-                this.refresh();
-                this.updateTransform();
-                return this;
-            }
-
-            this._style = arguments[0];
-
-            return this;
         },
 
         animate: function (callback, duration) {
@@ -255,16 +275,24 @@
         },
 
         remove: function() {
+            var children = this._children,
+                classes  = this._class,
+                cls,
+                child_id;
+
             if (this._parent) {
                 delete this._parent._children[this._id];
             }
 
-            _.each(this._children, function (child) {
-                child.remove();
-            });
-            _.each(this._class, function (v,k) { this.removeClass(k);  } , this);
-            this._r.remove(this);
+            for (child_id in children) { if (children.hasOwnProperty(child_id)) {
+                children[child_id].remove();
+            }}
 
+            for (cls in classes) { if (classes.hasOwnProperty(cls)) {
+                this.removeClass(cls);
+            }}
+
+            this._r.remove(this);
 
             return this;
         },
@@ -373,41 +401,18 @@
                     el = el._parent;
                 }
                 return false;
-            }
-        },
-
-        computeStyle: function (elm) {
-            var style = this._opts.style || [];
-            var dflt = p.defaultStyle;
-            return function(attr, set) {
-                if (arguments.length === 2) {
-                    style[elm][attr] = set;
-                    return true;
-                }
-                if (style[elm] && attr in style[elm]) {
-                    return style[elm][attr];
-                }
-                if (style['*'] && attr in style['*']) {
-                    return style['*'][attr];
-                }
-                if (dflt[elm] && attr in dflt[elm]) {
-                    return dflt[elm][attr];
-                }
-                if (dflt['*'] && attr in dflt['*']) {
-                    return dflt['*'][attr];
-                }
-            }
+            };
         }
-
     });
 
     var elementID = 0;
 
-    p.element.element = function(name, cls) {
+    pythia.element.element = function(name, cls) {
         pythia.elements[name] = cls;
 
-        p.element.extend(name, function () {
-            var o = p.Object(cls.__pythia);
+        pythia.element.extend(name, function () {
+            var o = pythia.Object(cls.__pythia);
+            elements[elementID] = o;
             o._id = elementID++;
             o.parent(this);
             o._r = this._r;
@@ -418,5 +423,9 @@
         });
 
         return cls;
-    }
+    };
+
+    pythia.getElement = function (id) {
+        return elements[id];
+    };
 })(pythia);

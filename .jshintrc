@@ -1,4 +1,24 @@
 {
-    "laxcomma": 1,
-    "laxbreak": 1
+  "strict": 1,
+  "laxcomma": 1,
+  "laxbreak": 1,
+  "curly": 1,
+  "indent": 2,
+  "expr": 1,
+  "es3": 1,
+  "undef": true,
+  "maxcomplexity": 8,
+  "globals": {
+    "setTimeout": false,
+    "module": false,
+    "require": false,
+    "define": false,
+    "gon": false,
+    "document": false,
+    "window": false,
+    "describe": false,
+    "expect": false,
+    "sinon": false,
+    "it": false
+  }
 }

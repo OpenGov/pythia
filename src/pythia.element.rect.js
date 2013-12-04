@@ -1,8 +1,8 @@
 pythia.element.element('rect', pythia.Class(pythia.elements.path, {
     repath: function () {
         (function (pos, dim, style) {
+            this._style = style;
             this.reset()
-                .style(style)
                 .move([0     , 0     ])
                 .line([dim[0], 0     ])
                 .line([dim[0], dim[1]])

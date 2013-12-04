@@ -23,10 +23,12 @@
             }
 
             if (r === 'auto') {
-                if (pythia.svgSupported() || pythia.vmlSupported()) {
+                if (pythia.svgSupported()) {
                     r = 'raphael';
-                } else {
+                } else if (pythia.canvasSupported()) {
                     r = 'canvas';
+                } else if (pythia.vmlSupported()) {
+                    r = 'vml';
                 }
             }
 

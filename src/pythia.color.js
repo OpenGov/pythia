@@ -19,11 +19,17 @@ pythia.color = pythia.Class({
         var hex = this.hex().toString(16);
         var i;
 
-        for (var i = hex.length; i < 6; ++i) {
+        for (i = hex.length; i < 6; ++i) {
             hex = '0' + hex;
         }
         return '#' + hex;
     },
+
+    htmlRGB: function() {
+        var i, str;
+        return 'rgb(' + ~~(this.r * 255) + ',' + ~~(this.g * 255) + ',' + ~~(this.b * 255) + ')';
+    },
+
 
     //one hex parameter or three floating point rgb values
     init: function() {

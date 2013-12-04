@@ -1,23 +1,22 @@
 {
   "name": "pythia",
   "version": "0.0.0",
-  "description": "Browser based graphing library",
-  "main": "src/pythia.js",
+  "description": "A charting library",
+  "directories": {
+    "example": "example"
+  },
   "scripts": {
-    "test": "./jake.sh test"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:DelphiSolutions/pythia.git"
+    "url": "git://github.com/DelphiSolutions/pythia.git"
   },
-  "author": "Krishna Rajendran <krishna@emptybox.org> (http://emptybox.org)",
-  "license": "MIT",
-  "readmeFilename": "README",
-  "dependencies": {
-    "jake": "~0.5.8"
-  },
+  "author": "",
+  "readmeFilename": "README.md",
   "devDependencies": {
-    "mocha": "~1.8.1",
-    "testacular": "~0.6.0"
+    "grunt-contrib-watch": "~0.5.3",
+    "grunt": "~0.4.2",
+    "grunt-contrib-concat": "~0.3.0"
   }
 }

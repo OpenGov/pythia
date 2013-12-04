@@ -26,7 +26,6 @@ pythia.element.element('circleSlice', pythia.Class(pythia.elements.path, {
 
             this.resetT();
             this.reset()
-                .style(this._style)
                 .move([0, 0])
                 .line(start)
                 .arc([0,0], this._radius, this._startAngle, this._angle)

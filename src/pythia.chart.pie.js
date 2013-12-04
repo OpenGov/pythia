@@ -24,11 +24,10 @@
 
             this.flipCache();
 
-            var self  = this
-              , total = _.reduce(self._data._data, function (sum, el) { return sum + self.dataValue(el); }, 0);
+            var self  = this,
+                total = _.reduce(self._data._data, function (sum, el) { return sum + self.dataValue(el); }, 0);
             var count = 0;
 
-            //var legend = self.drawLegend.call(self);
             self.pos = self.pos || 0;
 
             if (self._opts.multiline) {
@@ -37,13 +36,8 @@
                     var data = _.zip(_.pluck(_.map(self._data._data, self.dataLine), key), _.keys(self._data._data));
 
                     total = _.reduce(data, function (sum, el) {
-                        var value = self.dataValue(el[0]);
-
-                        if (value > 0) {
-                            return sum + value;
-                        } else {
-                            return sum;
-                        }
+                        var value = Math.abs(self.dataValue(el[0]));
+                        return sum + value;
                     }, 0);
 
                     addLine(data, key);
@@ -54,56 +48,55 @@
             }
 
             function addLine(data, lineNo) {
-
                 var startAngle = Math.PI / 6;
                 var animation;
-                _.each(data, function(zipped, i) {
-                    var el      = zipped[0];
-                    var lineKey = zipped[1];
-                    var line = self._data._data[lineKey];
 
-                    var value = self.dataValue(el, i, lineNo);
-                    if (value < 0) {
-                        return;
-                    }
+                _.each(data, function(zipped, i) {
+                    var el      = zipped[0],
+                        lineKey = zipped[1],
+                        line    = self._data._data[lineKey],
+                        value   = self.dataValue(el, i, lineNo),
+                        ratio,
+                        angle,
+                        opacity = 0.6;
+
                     if (_.isUndefined(value)) {
                         return;
                     }
 
-                    var ratio, angle;
+                    if (value < 0) {
+                        opacity = 0.01;
+                    }
 
                     if (total) {
-                        ratio = (value / total);
-                        angle = ratio * 2 * Math.PI
+                        ratio = (Math.abs(value) / total);
+                        angle = ratio * 2 * Math.PI;
                     } else {
                         angle = 2 * Math.PI / data.length;
                     }
 
-                    var lineId = self.dataLineId(self._data._data[lineKey]);
-                    var slice = self.cache(lineId, 'slice');
-                    if (!slice) {
-                        var alpha;
-                        if (Browser.chrome) {
-                            alpha = 1;
-                        } else {
-                            alpha = 0.6;
-                        }
-                        slice = self.circleSlice(
-                                      [self.x, self.y]
-                                    , self.radius
-                                    , startAngle
-                                    , 0
-                                    , p.chainStyle(self.style, {
-                                          color: line.color,
-                                          size: 'proportional',
-                                          alpha: alpha,
-                                          stroke: false
-                                    })
-                                    ).addClass('slice')
-                                     .data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id)
+                    var lineId = self.dataLineId(self._data._data[lineKey]),
+                        slice  = self.cache(lineId, 'slice');
 
-                        var ratio = angle / (2 * Math.PI);
-                        var a = self.animate(morph(slice, slice._startAngle, slice._angle, startAngle, angle), ratio * 200);
+                    if (!slice) {
+                        slice = self.circleSlice(
+                            [self.x, self.y],
+                            self.radius,
+                            startAngle,
+                            0,
+                            p.Style(self.style, {
+                                color:         line.color,
+                                size:          'proportional',
+                                fillOpacity:   opacity,
+                                stroke:        line.color,
+                                strokeColor:   line.color,
+                                strokeOpacity: 0.6
+                            })
+                        ).addClass('slice')
+                         .data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id);
+
+                        ratio = angle / (2 * Math.PI);
+                        var a = self.animate(morph(slice, slice._startAngle, slice._angle, startAngle, angle), ratio * 500);
 
                         if (animation) {
                             animation = animation.chain(a);
@@ -112,11 +105,19 @@
                         }
 
                     } else {
-                        slice._pos        = [self.x, self.y];
-                        slice._radius     = self.radius;
-                        slice.data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id)
-                        var ratio = Math.abs(angle) / (2 * Math.PI);
-                        var a = self.animate(morph(slice, slice._startAngle, slice._angle, startAngle, angle), 500);
+                        slice._pos    = [self.x, self.y];
+                        slice._radius = self.radius;
+                        slice.data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id);
+
+                        // Don't flip styles on 0
+                        if (value < 0) {
+                            slice.setStyle('fillOpacity', 0.1);
+                        } else if (value > 0) {
+                            slice.setStyle('fillOpacity', 0.6);
+                        }
+
+                        ratio = Math.abs(angle) / (2 * Math.PI);
+                        self.animate(morph(slice, slice._startAngle, slice._angle, startAngle, angle), 500);
                     }
                     slice.percent = ratio * 100;
                     startAngle += angle;
@@ -126,7 +127,7 @@
             this.flushCache();
             this._r.unPause();
         }
-    }))
+    }));
 
     function morph(slice, oldStartAngle, oldAngle, startAngle, angle) {
         return function (scale) {
@@ -134,7 +135,7 @@
             slice._angle      = oldAngle + (angle - oldAngle) * scale;
 
             slice.updateTransform();
-        }
+        };
     }
 
 })(pythia);

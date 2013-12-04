@@ -31,7 +31,7 @@
                 return this;
             });
 
-            this.Text.extend('measure', function() {
+            this.Text.extend('measureText', function() {
                 //TODO height calc
                 return [_r._ctx.measureText(this.path[2]).width, 11];
             });
@@ -40,7 +40,7 @@
                 var path  = this.path
                   , style = this.style || p.style({})
                   , fill = (typeof(style('fill')) === 'undefined') ? true : false
-                  , alpha = style('alpha')
+                  , opacity = style('opacity')
 
                   , index = 0
 
@@ -48,10 +48,10 @@
                     //TODO FIREFOX?
                     //_r._ctx.setAlpha(0);
                 } else {
-                    //_r._ctx.setAlpha(alpha);
+                    //_r._ctx.setAlpha(opacity);
                 }
 
-                _r._ctx.lineWidth = style('line-width') || 1;
+                _r._ctx.lineWidth = style('strokeWidth') || 1;
                 _r._ctx.strokeStyle = p.color(style('strokeColor')).html();
                 _r._ctx.fillStyle   = p.color(style('color') || style('fillColor')).html();
                 _r._ctx.beginPath();

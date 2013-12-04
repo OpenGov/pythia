@@ -1,0 +1,114 @@
+<body>
+  <div id="container" style="height:800px"></div>
+
+  <script src="dist/pythia.js"></script>
+  <script>
+    var canvas = pythia(document.getElementById("container"));
+
+    var options = {
+      dataLine:    function (d) { return d.amounts; },
+      dataLineId:  function (d) { return d.id;          },
+      dataValueId: function (d) { return d.year;        },
+      lineColor:   function (d) { return d.color;       },
+
+      multiline: true,
+      stacked:   true,
+      fill:      true,
+      elementStyle: {
+        line: {
+          'default': {
+            strokeWidth: 0,
+            'stroke-dasharray': "none"
+          },
+
+          budget: {
+            strokeWidth:  0,
+            'stroke-dasharray': "8,4"
+          }
+        },
+
+        vertex: {
+          'default': {
+            pointerEvents: 'always',
+            stroke: false,
+            size:'fixed'
+          }
+        },
+
+        fill: {
+          'default': {
+            opacity:        0.75,
+            fill:           true,
+            stroke:         true,
+            strokeWidth:    0.5,
+            strokeOpacity:  0.75,
+            pointerEvents:  'always'
+          },
+
+          budget: {
+            opacity:       0.60,
+            fill:          true,
+            stroke:        true,
+            strokeWidth:   0.5,
+            strokeOpacity: 1,
+            pointerEvents: 'always'
+          }
+        }
+      }
+    };
+
+    var data = [{"id":"261","name":"Legislstive","order":1,"types":["actual","actual","actual","actual","budget"],"amounts":[163147814,161417929,169238270,183906572,183753500],"color":14336085,"average":172292817},{"id":"420","name":"Community Services","order":5,"types":["actual","actual","actual","actual","budget"],"amounts":[4874914666,4492254444,3471832324,3716507243,3574229800],"color":9153992,"average":4025947695.4},{"id":"271","name":"Community Development","order":2,"types":["actual","actual","actual","actual","budget"],"amounts":[12346306144,13396590360,15455870021,14475954480,4241645500],"color":10394296,"average":11983273301},{"id":"333","name":"Public Safety","order":3,"types":["actual","actual","actual","actual","budget"],"amounts":[14116002797,13579826425,13692441979,14655791419,13397751900],"color":11257764,"average":13888362904},{"id":"137","name":"Administration","order":0,"types":["actual","actual","actual","actual","budget"],"amounts":[11491767843,8768406662,24479543158,32124373006,7826930200],"color":14342804,"average":16938204173.8},{"id":"370","name":"Public Works","order":4,"types":["actual","actual","actual","actual","budget"],"amounts":[16400143473,14749697085,15925199045,15994002747,39081027700],"color":9952928,"average":20430014010},{"id":"460","name":"Public Utilities","order":6,"types":["actual","actual","actual","actual","budget"],"amounts":[45071552251,42027946283,42960099580,43813921997,47057298500],"color":14134466,"average":44186163722.2}] 
+
+    canvas.size([800,600]);
+
+    var port = canvas.port([10, 5], [80, 70], {
+      position:'fixed'
+    });
+
+    var chart = port.lineChart(options);
+    chart.data(data);
+
+    var xAxisStyle = {
+      'size':        'fixed',
+      'color':       0x6E6E6E,
+      fontSize:      14,
+      'position':    'fixed-horizontal',
+      'font-weight': 'bold',
+      'baseline':    'bottom',
+      'yrelative':    'bottom',
+      'stroke': false
+    }
+    var yAxisStyle = {
+      size:          'fixed',
+      color:         0x6E6E6E,
+      fontSize:      14,
+      position:      'fixed-vertical',
+      'font-weight': 'bold',
+      baseline:      'top',
+      stroke:        false
+    };
+
+    chart.axis({
+      position: 'bottom',
+      type: 'ordinal',
+      labels: ['a', 'b', 'c', 'd', 'e'],
+      label: 'X Axis!',
+      labelStyle: xAxisStyle
+    });
+
+    chart.axis({
+      position: 'left',
+      type: 'continuous',
+      longest: chart.longest,
+      shortest: chart.shortest,
+      stepCount: chart.stepCount,
+      format: pythia.id,
+      label: 'Y AXIS!',
+      labelStyle: yAxisStyle
+    });
+
+
+    port.resize([100, 20], [130, 100]);
+    port.refresh();
+  </script>
+</body>
