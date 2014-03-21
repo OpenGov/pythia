@@ -44,7 +44,7 @@ pythia.element.element('axis', pythia.Class(pythia.element, {
                 for (i = 0; i < labels.length; ++i) {
                     var text = labels[i];
 
-                    this.text(text, [position, 55], textStyle);
+                    this.text(text, [position, 70], textStyle);
                     position += stepSize;
                 }
 
@@ -63,14 +63,14 @@ pythia.element.element('axis', pythia.Class(pythia.element, {
                 for (i = 0; i <= stepCount ; i++) {
                     var v = format(i * vStep + shortest);
                     var y = 100 - i * yStep;
-                    this.text(v, [90, y],
+                    this.text(v, [75, y],
                         pythia.Style(textYStyle, {textAlign:'right'}));
                     if (v === 0) {
                         this.line([[0,y], [100,y]], style);
                     }
                 }
 
-                this.text(options.label, [19, 40], pythia.Style(options.labelStyle))
+                this.text(options.label, [0, 40], pythia.Style(options.labelStyle))
                         .rotate(Math.PI / 2);
             }
 

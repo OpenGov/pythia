@@ -13,6 +13,18 @@
           ['roundLongest', false],
           ['fill', false]],
 
+        hasPositiveData: function () {
+            var self = this;
+            return _.any(self._data._data, function(d) {
+              var values = _.map(self.dataLine(d), self.dataValue);
+              return _.any(values, greaterThanZero);
+            });
+
+            function greaterThanZero(v) {
+              return v > 0;
+            }
+        },
+
         refresh: function() {
             this._r.pause();
             this.killAllAnimations();
@@ -86,7 +98,7 @@
 
                 this.step = (100 - shortest) / this.stepCount;
             } else {
-                if (shortest < 0 && longest > 0) {
+                if (shortest < 0 && this.hasPositiveData()) {
                     negativeDrag = 2;
                 }
 
@@ -107,10 +119,14 @@
 
 
             var yOffset    = shortest < 0 ? -1 * shortest : 0, // Account for negative space below the x axis
-                yTransform = 100/(longest + yOffset),          // Multiply y values into height in the renderer
-                zeroHeight = yOffset * yTransform;             // Height of the zero x axis
+                yTransform = 100/(longest + yOffset);          // Multiply y values into height in the renderer
 
-            var dSize,
+            if (yTransform === Infinity) {
+              yTransform = 0;
+            }
+
+            var zeroHeight = yOffset * yTransform,             // Height of the zero x axis
+                dSize,
                 types = [];
 
             if (multiline) {
@@ -198,15 +214,15 @@
                     if (dSize > 1) {
                         vertex = [stepSize * i, y];
                         vertices.push(vertex);
-                        points.push([value, key, vertex, value]);
+                        points.push([element, key, vertex, value]);
                     } else {
                         vertex = [50, y];
-                        points.push([value, key, vertex, value]);
+                        points.push([element, key, vertex, value]);
                         vertices = [[0,y], vertex, [100,y]];
-                        vertices[0].type = line.sortedTypes[key];
-                        vertices[2].type = line.sortedTypes[key];
+                        vertices[0].type = line.types[key];
+                        vertices[2].type = line.types[key];
                     }
-                    vertex.type = line.sortedTypes[key];
+                    vertex.type = line.types[key];
                     ++i;
 
                     if (vertex.type !== current_type) {

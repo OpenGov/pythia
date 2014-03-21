@@ -15,9 +15,10 @@
                          ];
         processAnimations._r = this;
 
-        pythia.span = doc.createElement('span');
-        pythia.span.style.cssText = "position:absolute;left:-9999em;top:-9999em;padding:0;margin:0;line-height:1;";
-        doc.body.appendChild(pythia.span);
+        pythia.span = doc.createElement('athena');
+        // 1.2 to roughly correspond with how raphael ends up spacing fonts
+        pythia.span.style.cssText = "position:absolute;left:-9999em;top:-9999em;padding:0;margin:0;line-height:1.2";
+        container.appendChild(pythia.span);
     };
 
     r.unPause = function () {
@@ -247,14 +248,19 @@
             bounds;
 
         if (textStyle.fontSize) {
-            style.fontSize = textStyle.fontSize;
+          style.fontSize = textStyle.fontSize + 'px';
         }
+
+        if (textStyle.fontFamily) {
+          style.fontFamily = textStyle.fontFamily;
+        }
+
         doc.body.appendChild(span);
         span.innerHTML = text.replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1<br>$2');
         bounds = span.getBoundingClientRect();
 
         return [
-            bounds.right - bounds.left,
+            bounds.right - bounds.left + 8,
             bounds.bottom - bounds.top
         ];
     };

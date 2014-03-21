@@ -114,10 +114,15 @@
                     if (this._style.baseline === 'bottom') {
                         var box = this._raph.getBBox(true);
                         pos[1] -= box.height/2;
-                    } else
-                    if (this._style.baseline === 'top') {
+                    } else if (this._style.baseline === 'top') {
                         var box = this._raph.getBBox(true);
-                        pos[1] += box.height/2;
+                        // If the text has been rotated rotate the baseline
+                        // shift approprately
+                        var tx = -this.rotateT[1] * box.height/2,
+                            ty = this.rotateT[4] * box.height/2;
+
+                        pos[0] += tx;
+                        pos[1] += ty;
                     }
                 }
             }
@@ -363,6 +368,12 @@
         if (path[0] === 'F') {
             if (style.fontSize) {
                 attr['font-size'] = style.fontSize;
+            }
+            if (style.fontFamily) {
+                attr['font-family'] = style.fontFamily;
+            }
+            if (style.fontWeight) {
+                attr['font-weight'] = style.fontWeight;
             }
             if (style.textAlign === 'right') {
                 attr['text-anchor'] = 'end';

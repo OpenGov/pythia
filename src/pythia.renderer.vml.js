@@ -40,8 +40,8 @@
             }
         });
 
-        addEvent(container, 'mouseover', function (evt) {
-            var domEl = evt.target || evt.srcElement,
+        addEvent(container, 'mouseenter', function (evt) {
+            var domEl = evt.currentTarget || evt.target || evt.srcElement,
                 from  = evt.fromElement,
                 id    = domEl.getAttribute('pythia_id');
 
@@ -49,20 +49,24 @@
                 if (id) {
                     element = pythia.getElement(id);
                     if (element) {
+                      if (!element._style || element._style.pointerEvents !== 'none') {
                         element.invoke('mouseover');
+                      }
                     }
                 }
             }
         });
 
-        addEvent(container, 'mouseout', function (evt) {
+        addEvent(container, 'mouseleave', function (evt) {
             var domEl = evt.target || evt.srcElement,
                 id    = domEl.getAttribute('pythia_id');
 
             if (id) {
                 element = pythia.getElement(id);
                 if (element) {
-                    element.invoke('mouseout');
+                    if (!element._style || element._style.pointerEvents !== 'none') {
+                      element.invoke('mouseout');
+                    }
                 }
             }
         });
@@ -436,6 +440,10 @@
                 text.style.fontSize = style.fontSize;
             }
 
+            if (style.fontFamily) {
+                text.style.fontFamily = style.fontFamily;
+            }
+
             vml.appendChild(path);
             vml.appendChild(text);
         }
@@ -485,15 +493,9 @@
 
     pythia.renderer.vml = pythia.Class(pythia.renderer, renderer);
 
-    if (doc.addEventListener) {
-        addEvent = function (element, type, fn) {
-            element.addEventListener(type, fn, true);
-        };
-    } else if (doc.attachEvent) {
-        addEvent = function (element, type, fn) {
-            element.attachEvent('on' + type, fn);
-        };
-    }
+    addEvent = function (element, type, fn) {
+      $(element).on(type, '.pythiavml', fn);
+    };
 
     contains = function (context, node){
         if (node) do {

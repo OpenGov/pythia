@@ -2,7 +2,7 @@
     p.element.element('pieChart', p.Class(p.chart, {
         init: function () {
             var self        = this;
-            this.radius     = self._opts.radius  || 50;
+            this.radius     = self._opts.radius  || 48;
             this.x          = self._opts.x       || 50;
             this.y          = self._opts.y       || 50;
 

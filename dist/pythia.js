@@ -1,4 +1,5 @@
-// ┌────────────────────────────────────────────────────────────────────┐ \\
+define(function (require) {
+  var _ = require('lodash');// ┌────────────────────────────────────────────────────────────────────┐ \\
 // │ Raphaël 2.1.0 - JavaScript Vector Library                          │ \\
 // ├────────────────────────────────────────────────────────────────────┤ \\
 // │ Copyright © 2008-2012 Dmitry Baranovskiy (http://raphaeljs.com)    │ \\
@@ -5795,3 +5796,3775 @@ window.Raphael && window.Raphael.vml && function (R) {
         })(method);
     }
 }(window.Raphael);
+;(function(window) {
+    "use strict";
+
+    // The global pythia function and object. Entry point to all things pythia.
+    // Returns a canvas to render stuff onto
+    var pythia = window.pythia = function (d, options) {
+        if (_.isElement(d)) {
+            return pythia.canvas(d, options);
+        } else if (d) {
+            return pythia.set(d, options);
+        } else {
+            return pythia.canvas(undefined, options);
+        }
+    };
+
+    // Wrapper for console.log that won't throw errors in browsers.
+    pythia.log = function() {
+        if (typeof window.console === 'object') {
+            window.console.log.apply(window.console, arguments);
+        }
+    };
+
+    pythia.logOne = function(obj) {
+        var parts = [];
+        _.each(obj, function (c) {
+            parts.push(c);
+        });
+        pythia.log.apply(this, parts);
+    };
+
+    // Don't do anything
+    pythia.doNil = function () {};
+
+    // The identity function
+    pythia.id    = function (p) { return p; };
+
+    // Build accessor functions to pull attributes out of data
+    pythia.accessor = function(a, deflt) {
+        //Use the default if a is undefined
+        if (typeof(a) === 'undefined')
+            a = deflt;
+
+        //It's already a function
+        if (typeof(a) === 'function')
+            return a;
+
+        //Accessor that cycles through elements of an array
+        if (a instanceof Array) {
+            var len = a.length;
+            return function (d,i) { return a[i % len]; };
+        }
+
+        return function () { return a; };
+    };
+
+    pythia.mCopy = function(m) {
+        return [m[0], m[1], m[2],
+                m[3], m[4], m[5],
+                m[6], m[7], m[8]];
+    };
+
+    pythia.randomColor = function() {
+        return Math.random() * 0xffffff;
+    };
+
+    function zipSumNan(e) {
+        return (e[0] || 0) + (e[1] || 0);
+    }
+
+    pythia.max = function(data, dataValue, dataLine, multiline, stacked) {
+        if (multiline && stacked) {
+            //Sum elements element-wise by line
+            var sums;
+            _.each(data, function(d) {
+                var values = _.map(dataLine(d), dataValue);
+                if (!sums) {
+                    sums = values;
+                } else {
+                    //sums = _.map(_.zip(sums, values), function (e) { return (e[0] || 0) + (e[1] || 0) });
+                    for (var i = 0; i < sums.length || i < values.length; ++i) {
+                        sums[i] = (sums[i] || 0) + (values[i] || 0);
+                    }
+                }
+            });
+
+            return _.max(sums);
+        }
+
+        if (multiline) {
+            //list of longest elements in each line
+            var lineMax = _.map(data, function (d) {
+                return _.max(dataLine(d), dataValue);
+            });
+            //longest element of all
+            return dataValue(_.max(lineMax, dataValue));
+        }
+
+        return dataValue(_.max(data, dataValue));
+    };
+
+    pythia.shortList = function(data, dataValue, dataLine, multiline, stacked) {
+        var sums = [];
+        _.each(data, function(d) {
+            var values = _.map(dataLine(d), dataValue); 
+
+            for (var i = 0; i < sums.length || i < values.length; ++i) {
+                if (values[i] < 0) {
+                    sums[i] = (sums[i] || 0) + values[i];
+                } else {
+                    sums[i] = sums[i] || 0;
+                }
+            }
+        });
+
+        return sums;
+    };
+
+    pythia.min = function(data, dataValue, dataLine, multiline, stacked) {
+        if (multiline && stacked) {
+            //Sum elements element-wise by line
+            var sums;
+            _.each(data, function(d) {
+                var values = _.map(dataLine(d), dataValue); 
+                if (!sums) {
+                    sums = values;
+                } else {
+                    for (var i = 0; i < sums.length || i < values.length; ++i) {
+                        if (values[i] < 0) {
+                            sums[i] = (sums[i] || 0) + values[i];
+                        } else {
+                            sums[i] = sums[i] || 0;
+                        }
+                    }
+                }
+            });
+
+            return _.min(sums);
+        }
+
+        if (multiline) {
+            //list of longest elements in each line
+            var lineMax = _.map(data, function (d) {
+                return _.min(dataLine(d), dataValue);
+            });
+            //longest element of all
+            return dataValue(_.min(lineMax, dataValue));
+        }
+
+        return dataValue(_.min(data, dataValue));
+    };
+
+    var propertyTable = [];
+    var defineProperty = Object.defineProperty || function (obj, prop, descriptor) {
+        for (var i = 0, len = propertyTable.length; i < len; ++i) {
+            if (propertyTable[i] === obj) {
+                propertyTable[i][1][prop] = descriptor.value;
+                return;
+            }
+        }
+
+        var properties = {};
+        properties[prop] = descriptor.value;
+
+        propertyTable[propertyTable.length] = [obj, properties];
+    };
+
+    var getProperty = Object.defineProperty
+                      ? function (obj, prop) { return obj.prop; }
+                      : function (obj, prop) {
+                            for (var i = 0, len = propertyTable.length; i < len; ++i) {
+                                if (propertyTable[i] === obj) {
+                                    return propertyTable[i][1][prop];
+                                }
+                            }
+                      };
+    /*
+    pythia.data = function (data) {
+        var readers = {};
+        defineProperty(data, '_pythia', {enumerable: false, value: {
+              readers: readers
+
+            , sourceRefresh = pythia.doNil
+
+            , refresh: function () {
+                  sourceRefresh();
+                  _.each(readers, function(r) {
+                      r.refresh();
+                  });
+              }
+
+            , register: function (obj) {
+                  readers[obj.id] = obj;
+              }
+
+            , filter: function (by) {
+                  var newData = {};
+                  pythia.data(newData);
+                  newData._pythia.sourceRefresh = function () {
+                      _.filter(data, by);
+                  }
+              }
+        }});
+
+        return data;
+    }*/
+
+    pythia.set = function (data, refresh) {
+
+        refresh = refresh || function () {
+            return data;
+        };
+
+        function a(key) {
+            return data[key];
+        }
+
+        a._data    = data;
+        a._readers = {};
+        a.__pythia = true;
+
+        a.register = function (obj) {
+            a._readers[obj.id] = obj;
+        };
+
+        a.refresh = function () {
+            data = refresh();
+            _.each(_readers, function(r) {
+                r.refresh();
+            });
+        };
+
+
+        a.set = function (method, func) {
+            var refresh;
+            if (_.isString(method)) {
+                refresh = function () {
+                    return a[method](func);
+                };
+            }
+            if (_.isFunction(method)) {
+                refresh = function () {
+                    return method(data);
+                };
+            }
+            return pythia.set(refresh(), refresh);
+        };
+
+        a.each = function (func, context) {
+            return _.each(a._data, func, context);
+        };
+
+        a.map = function (func, context) {
+            return _.map(a._data, func, context);
+        };
+
+        a.filter = function (func, context) {
+            var results = {};
+            _.each(data, function(value, key) {
+              if (func.call(context, value, key))
+                results[key] = value;
+            });
+            return results;
+        };
+
+        return a;
+    };
+
+
+    pythia.refresh = function(data) {
+        getProperty(data, '_pythia').refresh();
+    };
+
+    pythia.svgSupported = function () {
+        return document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#Shape", "1.1");
+    };
+
+    pythia.webGLSupported = function () {
+        if (typeof pythia.webGLSupported.yes === "undefined") {
+            try {
+                var canvas = document.createElement('canvas');
+                pythia.webGLSupported.yes = !!(window.WebGLRenderingContext
+                          && (canvas.getContext('webgl')
+                              || canvas.getContext('experimental-webgl')));
+            } catch(e) {
+                pythia.webGLSupported.yes = false;
+            }
+        }
+        return pythia.webGLSupported.yes;
+    };
+
+    pythia.canvasSupported = function () {
+        return !! window.CanvasRenderingContext2D;
+    };
+
+    pythia.vmlSupported = function () {
+        if (typeof pythia.vmlSupported.yes === "undefined") {
+            var a = document.body.appendChild(document.createElement('div'));
+            a.innerHTML = '<v:shape id="vml_flag1" adj="1" />';
+            var b = a.firstChild;
+            b.style.behavior = "url(#default#VML)";
+            pythia.vmlSupported.yes = b ? typeof b.adj === "object": true;
+            a.parentNode.removeChild(a);
+        }
+        return pythia.vmlSupported.yes;
+    };
+
+    pythia.ticks = Date.now || function () {
+        return new Date().valueOf();
+    };
+
+    pythia.requestFrame =
+        window.requestAnimationFrame       ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame    ||
+        window.oRequestAnimationFrame      ||
+        window.msRequestAnimationFrame     ||
+        function (callback) {
+            return window.setTimeout(callback, 33);
+        };
+
+    pythia.cancelFrame =
+        window.cancelAnimationFrame       ||
+        window.webkitCancelAnimationFrame ||
+        window.mozCancelAnimationFrame    ||
+        window.oCancelAnimationFrame      ||
+        window.msCancelAnimationFrame     ||
+        function(id) {
+            window.clearTimeout(id);
+        };
+
+    var cancelAnimationFrame = window.cancelAnimationFrame || window.mozCancelAnimationFrame;
+
+
+
+    pythia.log10 = function (v) {
+        return Math.log(v)/Math.log(10);
+    };
+
+    pythia.addCommas = function (nStr) {
+        nStr += '';
+        var x = nStr.split('.');
+        var x1 = x[0];
+        var x2 = x.length > 1 ? '.' + (x[1].length == 1 ? x[1] + '0' : x[1]) : '';
+        var rgx = /(\d+)(\d{3})/;
+        while (rgx.test(x1)) {
+            x1 = x1.replace(rgx, '$1' + ',' + '$2');
+        }
+        return x1 + x2;
+    };
+
+    pythia.elements = {};
+})(this);
+;(function(pythia) {
+    "use strict";
+
+    var append, prepend, extend, on, trigger;
+
+    // Used to create objects
+    function Pythia() {}
+
+    // Create a basic object with prototype <proto>
+    pythia.Object = function (proto) {
+        Pythia.prototype = proto;
+        return new Pythia();
+    };
+
+    // Create a basic object with prototype <proto> and *shallow* copies of
+    // <properties>
+    pythia.Style = function (proto, properties) {
+        Pythia.prototype = proto;
+
+        var o = new Pythia(),
+            prop;
+
+        for (prop in properties) { if (properties.hasOwnProperty(prop)) {
+            o[prop] = properties[prop];
+        }}
+
+        return o;
+    };
+
+    // Return an object constructor function
+    //
+    // Class(<base>);
+    // Constructed objects will have a prototype built from base
+    //
+    // Class(<base>, <additional properties>);
+    // Constructed objects will have <additional properties>
+    pythia.Class = function (base, properties) {
+        base = base || {};
+
+        base = base.__pythia || base; // If base is one of our classes its
+                                      // prototype will be in __pythia
+        var proto = pythia.Object(base);
+        proto.__super = base;
+
+        // The class constructor function
+        var ctor = function () {
+            var o = pythia.Object(proto);
+
+            if (typeof proto.init === 'function') {
+                proto.init.apply(o, arguments);
+            }
+
+            return o;
+        };
+
+        ctor.__pythia = proto;
+
+        // Functions to add or replace properties in our class
+        ctor.extend  = extend;
+        ctor.append  = append;
+        ctor.prepend = prepend;
+
+        // Event handling functions
+        proto.on      = proto.on || on;
+        proto.removeAllListeners = proto.removeAllListeners || removeAllListeners;
+        proto.trigger = proto.trigger || trigger;
+
+        // Fill properties into our prototype
+        if (properties) {
+            ctor.extend(properties);
+        }
+
+        return ctor;
+    };
+
+    pythia.inherits = function (constructor, superConstructor) {
+        constructor.__super = superConstructor;
+        constructor.prototype = pythia.Object(superConstructor.prototype);
+    };
+
+    on = function (eventName, callback) {
+        var events, callbackList;
+
+        events = this._events  = this._events  || {};
+        this._eventId = this._eventId || 0;
+        this._eventId++;
+
+        callbackList = events[eventName] = events[eventName] || [];
+        callbackList.push([callback, this._eventId]);
+
+        return this._eventId;
+    };
+
+    trigger = function (eventName) {
+        var callbackList, args = [], i, len;
+
+        for (i = 1, len = arguments.length; i < len; ++i) {
+            args[i - 1] = arguments[i];
+        }
+
+        callbackList = this._events && this._events[eventName];
+
+        if (callbackList) {
+            for (i = 0, len = callbackList.length; i < len; ++i) {
+                callbackList[i][0].apply(this, args);
+            }
+        }
+
+        return;
+    };
+
+    function EventEmitter() {
+    }
+    pythia.EventEmitter = EventEmitter;
+
+    EventEmitter.prototype.on                 = on;
+    EventEmitter.prototype.emit               = trigger;
+    EventEmitter.prototype.removeAllListeners = removeAllListeners;
+
+    function removeAllListeners(eventName) {
+      delete this._events[eventName];
+    };
+
+    extend = function (name, value) {
+        if (_.isString(name)) {
+
+            if (name === 'init') {
+                this.append('init', value);
+            } else {
+                this.__pythia[name] = value;
+            }
+
+            return;
+        }
+
+        _.each(name, function (value, name) {
+            if (name === 'init') {
+                this.append('init', value);
+            } else {
+                this.__pythia[name] = value;
+            }
+        }, this);
+
+        return this;
+    };
+
+    append = function (method, fn) {
+        if (_.isString(method)) {
+            chain(this.__pythia, method, fn, 'append');
+            return this;
+        }
+
+        _.each(method, function (fn, method) {
+            chain(this.__pythia, method, fn, 'append');
+        }, this);
+
+        return this;
+    };
+
+    prepend = function (method, fn) {
+        if (_.isString(method)) {
+            chain(this.__pythia, method, fn, 'prepend');
+            return this;
+        }
+
+        _.each(method, function (fn, method) {
+            chain(this.__pythia, method, fn, 'prepend');
+        }, this);
+
+        return this;
+    };
+
+    function chain(prototype, method, func, placement) {
+        placement = placement || 'append';
+
+        var existingMethod = prototype[method],
+            pchain;
+
+        if (_.isFunction(existingMethod)) {
+            if (prototype.hasOwnProperty(method)) {
+                pchain = existingMethod.pythiaChain;
+            }
+
+            if (!pchain) {
+                pchain = [existingMethod];
+
+                prototype[method] = function () {
+                    var ret, i, len;
+
+                    for (i = 0, len = pchain.length; i < len; ++i) {
+                        ret = pchain[i].apply(this, arguments);
+                    }
+                    return ret;
+                };
+                prototype[method].pythiaChain = pchain;
+            }
+
+            if (placement === 'append') {
+                pchain.push(func);
+            } else if (placement === 'prepend') {
+                pchain.unshift(func);
+            } else {
+                throw "Error Unknown method placement " + placement;
+            }
+
+
+        } else {
+            prototype[method] = func;
+        }
+    }
+
+})(pythia);
+;pythia.color = pythia.Class({
+    hex: function(hex) {
+        if (typeof hex === 'undefined')
+            return ~~ (this.r * 255) << 16 ^ ~~ (this.g * 255) << 8 ^ ~~ (this.b * 255);
+
+        this.r = (hex >> 16 & 255) / 255;
+        this.g = (hex >> 8 & 255)  / 255;
+        this.b = (hex & 255)       / 255;
+
+        return this;
+    },
+
+    multiply: function(color) {
+        return pythia.color(this.r * color.r, this.g * color.g, this.b * color.b);
+    },
+
+    //TODO this should also function as a setter
+    html: function() {
+        var hex = this.hex().toString(16);
+        var i;
+
+        for (i = hex.length; i < 6; ++i) {
+            hex = '0' + hex;
+        }
+        return '#' + hex;
+    },
+
+    htmlRGB: function() {
+        var i, str;
+        return 'rgb(' + ~~(this.r * 255) + ',' + ~~(this.g * 255) + ',' + ~~(this.b * 255) + ')';
+    },
+
+
+    //one hex parameter or three floating point rgb values
+    init: function() {
+        if (arguments.length === 1) {
+            this.hex(arguments[0]);
+        }
+
+        if (arguments.length === 3) {
+            this.r = arguments[0];
+            this.g = arguments[1];
+            this.b = arguments[2];
+        }
+
+        return this;
+    }
+});
+;(function(pythia, undefined) {
+    var elements = {};
+
+    pythia.element = pythia.Class({
+        init: function () {
+            this._w       = 0;
+            this._h       = 0;
+            this._postion = [0,0];
+
+            this._events   = {};
+            this._children = {};
+            this._opts     = {};
+            this._style    = {};
+
+            this._class = {};
+
+            this._args = arguments;
+
+            // TODO: generic attribute stacks
+            this.transformStack = [];
+            this.scaleStack     = [];
+
+            this._animations    = {};
+
+            this.dirtyScale = true;
+
+            this.resetT();
+        },
+
+        options: function (defaults, opts) {
+            var key, opt, val;
+            for (key in defaults) {
+                dflt = defaults[key];
+                opt  = dflt[0];
+
+                if (typeof opts[opt] === 'undefined') {
+                    val = dflt[1];
+                } else {
+                    val = opts[opt];
+                }
+
+                if (this[opt]) {
+                    this[opt].call(this, val);
+                }
+                this._opts[opt] = val;
+            }
+
+            for (opt in opts) {
+                val = opts[opt];
+                if (!this._opts[opt]) {
+                    this._opts[opt] = val;
+                }
+            }
+        },
+
+        resetT: function () {
+            this.scaleT = [ 1, 0, 0
+                          , 0, 1, 0
+                          , 0, 0, 1
+                          ];
+            this.translateT = [ 1, 0, 0
+                              , 0, 1, 0
+                              , 0, 0, 1
+                              ];
+            this.rotateT = [ 1, 0, 0
+                           , 0, 1, 0
+                           , 0, 0, 1
+                           ];
+            return this;
+        },
+
+        pushScale: function () {
+            this.scaleStack.push(pythia.mCopy(this.scaleT));
+        },
+
+        popScale: function () {
+            if ( (scaleT = this.scaleStack.pop()) ) {
+                this.dirtyScale = true;
+                this.scaleT = scaleT;
+                this.updateTransform();
+            }
+        },
+
+        pushT: function () {
+            this.transformStack.push([pythia.mCopy(this.translateT), pythia.mCopy(this.scaleT)]);
+        },
+
+        popT: function () {
+            // TODO fix
+            if ( (transforms = this.transformStack.pop()) ) {
+                this.translateT = transforms[0];
+                this.scaleT = transforms[1];
+
+                this.dirtyScale = true;
+                this.updateTransform();
+            }
+        },
+
+        scale: function (s, relative) {
+            relative = relative || 'center';
+
+            var point  = [0,0],
+                center = this.center(),
+                dim    = this.bounds();
+
+            switch (relative) {
+                case 'bottom':
+                    point[0] = (dim.max[0] - dim.min[0]) / 2;
+                    point[1] = (dim.max[1] - dim.min[1]);
+                    break;
+                case 'top':
+                    point[0] = center[0];
+                    point[1] = dim.min[1];
+                    break;
+                case 'center':
+                    point[0] = center[0];
+                    point[1] = center[1];
+                    break;
+                default:
+                    if (_.isArray(rel)) {
+                        point[0] = rel[0];
+                        point[1] = rel[1];
+                    }
+            }
+
+            var yScale, xScale;
+
+            if (_.isArray(s)) {
+                xScale = s[0];
+                yScale = s[1];
+            } else {
+                yScale = xScale = s;
+            }
+
+            this.scaleT[0] *= xScale;
+            this.scaleT[1] *= xScale;
+            this.scaleT[3] *= yScale;
+            this.scaleT[4] *= yScale;
+            //this.scaleT[6] *= Math.sqrt(xScale * xScale + yScale * yScale);
+
+            this.scaleT[2] -= point[0] * (xScale - 1);
+            this.scaleT[5] -= point[1] * (yScale - 1);
+
+            this.dirtyScale = true;
+            this.updateTransform();
+        },
+
+        rotate: function (r) {
+            this.rotateT[0] =  Math.cos(r);
+            this.rotateT[1] = -Math.sin(r);
+            this.rotateT[3] =  Math.sin(r);
+            this.rotateT[4] =  Math.cos(r);
+
+            this.dirtyScale = true;
+            return this;
+        },
+
+        parent: function(parnt) {
+            if (!parnt) {
+                return this._parent;
+            }
+
+            if (this._parent) {
+                delete this._parent._children[this._id];
+            }
+
+            parnt._children[this._id] = this;
+            this._parent = parnt;
+
+            return this;
+        },
+
+        setStyle: function (style, value) {
+            if (value !== this.getStyle(style)) {
+                this._style[style] = value;
+                this.refresh();
+                this.updateTransform();
+            }
+        },
+
+        setStyles: function (styles) {
+            var style, value,
+                mutated = false;
+
+            for (style in styles) { if (styles.hasOwnProperty(style)) {
+                value = styles[style];
+                if (value !== this._style[style]) {
+                    mutated = true;
+                    this._style[style] = value;
+                }
+            }}
+
+            if (mutated) {
+                this.refresh();
+                this.updateTransform();
+            }
+        },
+
+        getStyle: function (style) {
+            return this._style[style];
+        },
+
+        end: function () {
+            return this._parent;
+        },
+
+        append: function(c) {
+            c.parent(this);
+
+            return this;
+        },
+
+        data: function(data, line, dataKey, lineKey) {
+            this._data        = data;
+            this._line        = line;
+            this._dataKey     = dataKey;
+            this._dataLineKey = lineKey;
+
+            this.addClass('data');
+            this.addClass('key' + dataKey);
+            this.addClass('lineKey' + lineKey);
+
+            return this;
+        },
+
+        refresh: function() {
+            if (this.repath) {
+                this.repath();
+            }
+            return this;
+        },
+
+        select: function (q, possible, results) {
+            if (!_.isArray(q)) {
+                q = q.split('.');
+            }
+
+            var elements    = this._r._classes[q[0]],
+                subElements = [];
+
+            var i;
+            var len = q.length;
+            for (i = 1; i < len; ++i) {
+                elements = _.filter(elements, filterByClass);
+            }
+
+            elements =
+                _.filter(elements, function (e) {
+                    while ((e = e._parent)) {
+                        if (e === this) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }, this);
+
+            return elements;
+
+            function filterByClass(el) {
+                return el.hasClass(q[i]);
+            }
+        },
+
+        animate: function (callback, duration) {
+            var anim = this._r.animate(this, callback, duration);
+            this._animations[anim.id] = anim;
+            return anim;
+        },
+
+        killAllAnimations: function () {
+            _.each(this._animations, function (anim) {
+                this._r.killAnimation(anim.id);
+                delete this._animations[anim.id];
+            }, this);
+        },
+
+        remove: function() {
+            var children = this._children,
+                classes  = this._class,
+                cls,
+                child_id;
+
+            if (this._parent) {
+                delete this._parent._children[this._id];
+            }
+
+            for (child_id in children) { if (children.hasOwnProperty(child_id)) {
+                children[child_id].remove();
+            }}
+
+            for (cls in classes) { if (classes.hasOwnProperty(cls)) {
+                this.removeClass(cls);
+            }}
+
+            this._r.remove(this);
+
+            return this;
+        },
+
+        clear: function () {
+            _.each(this._children, function (el) {el.remove(); } );
+        },
+
+        translate: function (t) {
+            this.translateT[2] += t[0];
+            this.translateT[5] += t[1];
+            this.dirtyScale = true;
+
+            return this;
+        },
+
+        size: function (dim) {
+            this._w = dim[0];
+            this._h = dim[1];
+            this.dirtyScale = true;
+
+            return this;
+        },
+
+        on: function (select, event, callback) {
+            if (arguments.length === 2) {
+                callback = event;
+                event    = select;
+                select   = 'this';
+            }
+
+            if (!this._events[event]) {
+                this._events[event] = {};
+            }
+            if (!this._events[event][select]) {
+                this._events[event][select] = {};
+            }
+
+            this._events[event][select] = callback;
+            return this;
+        },
+
+        hide: function () {
+            this.hidden = true;
+            return this;
+        },
+
+        show: function () {
+            this.hidden = false;
+            return this;
+        },
+
+        addClass: function (cls) {
+            if (!this._r._classes[cls]) {
+                this._r._classes[cls] = {};
+            }
+            this._r._classes[cls][this._id] = this;
+
+            this._class[cls] = true;
+            return this;
+        },
+
+        hasClass: function (cls) {
+            return this._class[cls];
+        },
+
+        removeClass: function (cls) {
+            delete this._r._classes[cls][this._id];
+            delete this._class[cls];
+            return this;
+        },
+
+        invoke: function (evt) {
+            if (evt === 'legendOver' && this._legendOver) {
+                return;
+            }
+            if (evt === 'legendOut' && !this._legendOver) {
+                return;
+            }
+            if (evt === 'legendOver') {
+                this._legendOver = true;
+            }
+            if (evt === 'legendOut') {
+                this._legendOver = false;
+            }
+            this.processEvent(evt).call(this);
+        },
+
+        processEvent: function (type) {
+            return function () {
+                var events = this._events[type];
+                if (events && events['this']) {
+                    events['this'].call(this);
+                }
+
+                var el = this;
+
+                while (el._parent) {
+                    events = el._parent._events[type];
+                    if (events) {
+                        _.each(this._class, function (_, cls) {
+                            if (events[cls])
+                                events[cls].call(this);
+                        }, this);
+                    }
+                    el = el._parent;
+                }
+                return false;
+            };
+        }
+    });
+
+    var elementID = 0;
+
+    pythia.element.element = function(name, cls) {
+        pythia.elements[name] = cls;
+
+        pythia.element.extend(name, function () {
+            var o = pythia.Object(cls.__pythia);
+            elements[elementID] = o;
+            o._id = elementID++;
+            o.parent(this);
+            o._r = this._r;
+            o.init.apply(o, arguments);
+            o.addClass(name);
+            o.refresh();
+            return o;
+        });
+
+        return cls;
+    };
+
+    pythia.getElement = function (id) {
+        return elements[id];
+    };
+})(pythia);
+;pythia.element.element('port', pythia.Class(pythia.element, {
+    init: function (pos, dim, style) {
+        this._pos   = pos;
+        this._dim   = dim;
+        this._style = style;
+    },
+
+    repath: function () {
+        var pos = this._pos;
+        var dim = this._dim;
+        this.translateT = [ 0, 0, pos[0]
+                          , 0, 0, pos[1]
+                          , 0, 0, 1
+                          ];
+        return this;
+    },
+
+    resize: function (pos, dim) {
+        this._pos = pos;
+        this._dim = dim;
+    }
+}));
+;pythia.element.element('path', pythia.Class(pythia.element, {
+    init: function () {
+        this._path = [];
+    },
+
+    reset: function () {
+        this._path = [];
+        return this;
+    },
+    move:  function (v) {
+        this._path.push("M", v);
+        return this;
+    },
+
+    line:  function (v) {
+        this._path.push("L", v);
+        return this;
+    },
+
+    close: function () {
+        this._path.push("Z");
+        return this;
+    },
+
+    curve: function (v1, v2, v3) {
+        this._path.push("C", v1, v2, v3);
+        return this;
+    },
+
+    arc: function (pos, radius, startAngle, angle) {
+        this._path.push("A", pos, radius, startAngle, angle);
+        return this;
+    },
+
+    repath: function () {
+        (function (pos, path, style) {
+            /*this._path = path;
+            this.style(style);
+            this.translate(pos);*/
+        }).apply(this, this._args);
+        return this;
+    }
+}));
+;pythia.element.element('rect', pythia.Class(pythia.elements.path, {
+    repath: function () {
+        (function (pos, dim, style) {
+            this._style = style;
+            this.reset()
+                .move([0     , 0     ])
+                .line([dim[0], 0     ])
+                .line([dim[0], dim[1]])
+                .line([0     , dim[1]])
+                .close()
+                .translate(pos);
+        }).apply(this, this._args);
+    }
+}));
+;pythia.element.element('line', pythia.Class(pythia.elements.path, {
+    init: function (vertices, style) {
+        this._vertices = vertices;
+        this._style    = style;
+        style.fill     = false;
+        style.stroke   = true;
+    },
+
+    repath: function () {
+        (function () {
+            this.reset()
+                .move(this._vertices[0]);
+
+            _.each(this._vertices, this.line, this);
+
+        }).apply(this, this._args);
+    }
+}));
+;pythia.element.element('axis', pythia.Class(pythia.element, {
+    repath: function () {
+        (function (options) {
+            var style      = pythia.defaultStyle.axis,
+                textStyle  = pythia.defaultStyle['axis text'],
+                textYStyle = pythia.defaultStyle['axis ytext'];
+
+            var position  = options.position   || 'bottom',
+                type      = options.type       || 'ordinal',
+                stepCount = options.stepCount  || 5,
+                format    = options.format     || function (d) { return d; },
+                longest   = options.longest    || 100,
+                shortest  = options.shortest   || 0,
+                labels    = options.labels     || [],
+                i;
+
+            switch (position) {
+                case 'bottom':
+                    this.line([[0,100], [100,100]], style);
+                    break;
+                case 'top':
+                    this.line([[0,0], [100,0]], style);
+                    break;
+                case 'left':
+                    this.line([[0,0], [0,100]], style);
+                    break;
+                case 'right':
+                    this.line([[100,0], [100,100]], style);
+                    break;
+            }
+
+
+            if (type === 'ordinal') {
+                stepSize = 100 / (labels.length - 1);
+
+                if (labels.length === 1) {
+                    position = 50;
+                } else {
+                    position = 0;
+                }
+
+                var labelHeight = pythia.measureText(options.label, options.labelStyle)[1];
+
+                for (i = 0; i < labels.length; ++i) {
+                    var text = labels[i];
+
+                    this.text(text, [position, 70], textStyle);
+                    position += stepSize;
+                }
+
+                this.text(
+                    options.label,
+                    [50, labelHeight + 2],
+                    pythia.Style(options.labelStyle)
+                );
+
+            } else {
+                //var longShort = pythia.axisScale(longest, shortest, stepCount);
+                vStep = this._parent.step;
+
+                var yStep = 100 / stepCount;
+
+                for (i = 0; i <= stepCount ; i++) {
+                    var v = format(i * vStep + shortest);
+                    var y = 100 - i * yStep;
+                    this.text(v, [75, y],
+                        pythia.Style(textYStyle, {textAlign:'right'}));
+                    if (v === 0) {
+                        this.line([[0,y], [100,y]], style);
+                    }
+                }
+
+                this.text(options.label, [0, 40], pythia.Style(options.labelStyle))
+                        .rotate(Math.PI / 2);
+            }
+
+            this._path = [];
+
+        }).apply(this, this._args);
+    }
+}));
+
+pythia.axisScale = function (longest, shortest, stepCount) {
+    var digits = Math.floor(pythia.log10(longest)),
+        firstDigit, secondDigit,
+        str    = (Math.floor(longest).toString()),
+        str2   = '';
+
+    if (digits > 1) {
+        secondDigit = parseInt(str.charAt(1), 10) + 1;
+
+        if (secondDigit === 10) {
+            firstDigit  = parseInt(str.charAt(0), 10) + 1;
+            secondDigit = '0';
+        } else {
+            firstDigit = str.charAt(0);
+        }
+
+        str2 += firstDigit + secondDigit;
+
+        for (var i = 2; i < str.length; ++i) {
+            str2 += '0';
+        }
+        longest = parseInt(str2, 10);
+    }
+
+    var vStep;
+
+    if (longest > 0 && shortest < 0) {
+        yRange        = (longest - shortest);
+        positiveTicks = Math.ceil(longest / yRange * (stepCount - 1));
+        negativeTicks = Math.ceil(-shortest / yRange * (stepCount - 1));
+
+        vStep = yRange / (positiveTicks + negativeTicks - 1);
+        shortest = -vStep * negativeTicks;
+        longest = vStep * positiveTicks;
+    } else {
+        if (shortest >= 0) {
+            shortest = 0;
+            vStep = longest / stepCount;
+        } else {
+            longest = 0;
+            vStep = -shortest / stepCount;
+        }
+    }
+
+    return [longest, shortest, vStep];
+};
+;pythia.element.element('text', pythia.Class(pythia.element, {
+    repath: function (position, data, style) {
+        (function (text, pos, style) {
+            this._path  = ['F', text];
+            this._style = style;
+            this.translate(pos);
+
+        }).apply(this, this._args);
+    }
+}));
+;pythia.element.element('circleSlice', pythia.Class(pythia.elements.path, {
+    init: function (pos, radius, startAngle, angle, style) {
+        this._pos = pos;
+        this._radius = radius;
+        this._startAngle = startAngle;
+        this._angle = angle;
+        this._style = style;
+    },
+
+    repath: function () {
+        (function () {
+            //this._pos = pos;
+
+            //var tt = p.mMulM(this.transform, p.mMulM(r.transform, this.win.transform));
+            //var tt = this.totalTransform();
+
+            //var xScale   = Math.sqrt(tt[0] * tt[0] + tt[1] * tt[1]);
+            //var yScale   = Math.sqrt(tt[3] * tt[3] + tt[4] * tt[4]);
+            //var scale = Math.min(xScale, yScale);
+
+            //this.radius = radius = radius * scale;
+            this.radius = this._radius;
+
+            var start = [ this._radius * Math.cos(this._startAngle)
+                        , this._radius * Math.sin(this._startAngle)];
+
+            this.resetT();
+            this.reset()
+                .move([0, 0])
+                .line(start)
+                .arc([0,0], this._radius, this._startAngle, this._angle)
+                .close()
+                .translate(this._pos)
+
+        }).apply(this, this._args);
+        return this;
+    },
+
+    origin: function () {
+        return this._pos;
+    },
+
+    center: function () {
+        return (function () {
+
+            if ((1.99 * Math.PI) < this._angle) {
+                return this._pos;
+            }
+            var centerAngle  = this._startAngle + this._angle / 2;
+            var centerRadius = this._radius / 2;
+
+            var scale = [ centerRadius * Math.cos(centerAngle)
+                        , centerRadius * Math.sin(centerAngle)];
+            scale[this._proportionalDim] *= this._proportianalScale;
+
+            var centerPoint = [ scale[0] + this._pos[0]
+                              , scale[1] + this._pos[1]];
+
+            return centerPoint;
+        }).apply(this, this._args);
+    }
+}));
+;(function(p) {
+    var chartID = 0;
+
+    p.chart = p.Class(p.element, {
+        init: function(options) {
+            options = options || {};
+
+            this.options(this.defaultOptions, options);
+
+            this._opts.style = options.style || p.defaultStyle;
+
+            this.dataLine    = p.accessor(options.dataLine,   function (d) { return d; });
+            this.dataValue   = p.accessor(options.dataValue,  function (d) { return d; });
+            this.dataValueId = p.accessor(options.dataValue,  function (d, k) { return k; });
+            this.dataLineId  = p.accessor(options.dataLineId, function (d, k) { return k; });
+            this.label       = p.accessor(options.label,      function (d) { return d; });
+            this.color       = p.accessor(options.color,      this._style.color);
+            this.lineColor   = p.accessor(options.lineColor,  this._style.color);
+
+            this.data([]);
+            this._cache = {children:{}};
+
+            if (options.title) {
+                this._r.Text(options.title, [50, 0], this.computeStyle('title'));
+            }
+        },
+
+        data: function (data) {
+            if (!data.__pythia) {
+                data = p.set(data);
+            }
+            data.register(this);
+
+            this._data = data;
+
+            this.refresh();
+
+            return this;
+        },
+
+        flipCache: function () {
+            this._oldCache = this._cache;
+            this._cache = {children:{}};
+
+            return this;
+        },
+
+        flushCache: function (cache) {
+            cache = cache || this._oldCache;
+            var self = this;
+
+            flush(cache);
+
+            this._oldCache = {children:{}};
+
+            return this;
+        },
+
+        traceCache: function (id, cache, skip) {
+            if (!_.isArray(id)) {
+                var subCache = cache[id];
+                if (!subCache) {
+                    if (skip) {
+                        return 0;
+                    }
+                    subCache = cache[id] = {children:{}};
+                } else {
+                }
+                return subCache;
+            }
+
+            var subCache = cache;
+            for (var i = 0; i < id.length; ++i) {
+                subCache = cache[id[i]];
+                if (!subCache) {
+                    if (skip) {
+                        return 0;
+                    }
+                    subCache = cache[id[i]] = {children:{}};
+                }
+                cache = subCache.children;
+            }
+
+            return cache;
+        },
+
+        cache: function (id, cacheName, el) {
+            var cache;
+
+            if (el) {
+                cache = this.traceCache(id, this._cache);
+                cache[cacheName] = el;
+
+                return this;
+
+            } else {
+                cache = this.traceCache(id, this._oldCache, 'skip');
+
+                if (!cache) {
+                    return;
+                }
+
+                el = cache[cacheName];
+                delete cache[cacheName];
+
+                return el;
+            }
+        },
+
+        roundLongest: function(longest) {
+            var digits = Math.floor(p.log10(longest));
+            var str  = (Math.floor(longest).toString());
+            var str2 = str.charAt(0) + str.charAt(1);
+
+            for (i = 2; i < str.length; ++i) {
+                str2 += '0';
+            }
+            if (str2 != longest) {
+                var pow = digits - 1 || 1;
+                longest = str2.toInt() + Math.pow(10, pow);
+            }
+
+            return longest;
+        },
+
+        render: function() {
+            return this;
+        },
+
+        size: function(width, height) {
+            this._r.size(width, height);
+            return this;
+        }
+    });
+
+    p.chart.append('remove', function () {
+        this._oldCache = {children:{}};
+        this._cache = {children:{}};
+    });
+
+    p.chart.append('clear', function () {
+        this._oldCache = {children:{}};
+        this._cache = {children:{}};
+    });
+
+
+    var style;
+
+    p.defaultStyle = style = {};
+
+    style['*'] = {
+          'color': [ 0x5578B4
+                   , 0xAB72A6
+                   , 0xF3715B
+                   , 0x00B039
+                   , 0xF79750
+                   , 0x66C190
+                   , 0xA9CEEC
+                   , 0xCACEC3
+                   , 0xAAA7CA
+                   , 0xDF8B96
+                   , 0x68B3E2
+                   , 0xFFDB4E
+                   , 0x96D4C3
+                   , 0xA7A9AC
+                   , 0xBBBA59
+                   , 0xE7A7CB
+                   ],
+
+        //'stroke':      0xffffff,
+        stroke:        false,
+        strokeColor:   0x000000,
+        'dash-array':  'none',
+
+        baseline:      'top',
+        textAlign:     'center',
+
+        'font-family': '',
+        fontSize:      '',
+        'font-weight': ''
+    };
+
+    style.axis = {
+        color:        0xcccccc,
+        strokeColor:  0xcccccc,
+        strokeWidth: 2,
+        textAlign: 'right',
+        stroke: false,
+        pointerEvents:'none'
+    };
+
+    style['axis text'] = {
+        color:         0xcccccc,
+        fontSize:      '14',
+        position:      'fixed-horizontal',
+        fontFamily:    'Helvetica',
+        yrelative:     'bottom',
+        size:          'fixed',
+        stroke:        false,
+        pointerEvents: 'none',
+        baseline:      'bottom'
+    };
+
+    style['axis ytext'] = {
+        color:         0xcccccc,
+        fontSize:      '14',
+        position:      'fixed-vertical',
+        fontFamily:    'Helvetica',
+        size:          'fixed',
+        stroke:        false,
+        pointerEvents: 'none',
+        baseline:      'middle'
+    };
+
+    style.title = {
+        baseline:'top',
+        textAlign:'center',
+        position:'fixed',
+        size: 'fixed',
+        color: 0xBBBA59,
+        stroke: false
+    };
+
+    style.tooltip = {
+        textAlign: 'center',
+        baseline: 'bottom',
+        pointerEvents:'none',
+        size:'fixed',
+        opacity: 0.7,
+
+        color:       '0x313031',
+        strokeWidth: 1,
+        strokeColor: '0xA5a8ab',
+        zIndex:      1
+    };
+
+    style['tooltip text'] = {
+        color:         0xF9F9F9,
+        fontFamily:    'proxima-nova',
+        fontSize:      '12',
+        opacity:       1,
+        pointerEvents: 'none',
+        baseline:      'top',
+        stroke:        false,
+        zIndex:        2
+    };
+
+    function flush(cache) {
+        var key;
+
+        for (key in cache) { if (cache.hasOwnProperty(key)) {
+            object = cache[key];
+            if (object.remove) {
+                var callback;
+                //if (self.doExit && (callback = self.doExit(object))) {
+                //    self.animate(callback, 500);
+                //} else {
+                    object.remove();
+                //}
+            } else {
+                flush(object);
+            }
+        }}
+    }
+
+})(pythia);
+;(function(p) {
+    p.element.element('barChart', p.Class(p.chart, {
+        init: function () {
+
+            this.multiline  = this._opts.multiline;
+            this.stacked    = this._opts.stacked;
+
+            this.color      = p.accessor(this._opts.color, 0xffffff);
+            this.lineColor  = p.accessor(this._opts.color, this._style.color);
+            this.bars = {};
+
+            this.refresh();
+        },
+
+        defaultOptions: [
+            ['multiline', false]
+          , ['roundLongest', false]
+          , ['stacked', false]
+        ],
+
+        refresh: function() {
+            if (_.isEmpty(this._data._data)) {
+                this.clear();
+                return;
+            }
+
+            var self             = this
+              , cumulativeHeight = []
+              , barWidth         = self._opts.barWidth   || self.calcBarWidth()
+              , barSpacing       = self._opts.barSpacing || self.calcBarWidth()
+              , barLineSpacing   = self._opts.barLineSpacing || 0.001
+              , lineCount        = self._data && _.size(self._data._data)
+              , highest          = p.max(self._data._data, self.dataValue, self.dataLine, self.multiline, self.stacked)
+              ;
+
+            if (this._opts.roundLongest) {
+                highest = this.roundLongest(longest);
+            }
+            this.longest = highest;
+
+            if (self.multiline) {
+                _.each(self._data._data, addLine(line, lineNo));
+            } else { //not multiline
+                addLine(self._data._data, 0);
+            }
+
+            function addLine(line, lineNo) {
+                var i = 0;
+                _.each(self.dataLine(line), function(element, key) {
+                    var value = self.dataValue(element, key, lineNo);
+                    var height = value / highest * 100;
+                    var x, y = 100 - height;
+
+                    if (self.stacked) {
+                        if (lineNo) {
+                            y -= cumulativeHeight[key];
+                            cumulativeHeight[key] += height;
+                        } else {
+                            cumulativeHeight[key] = height;
+                        }
+                    }
+
+                    var blSpacing = barLineSpacing * self._w;
+
+                    x = (barWidth + barSpacing + barLineSpacing) * i;
+
+                    if (self.multiline && !self.stacked) {
+                        x = x * lineCount + (lineNo * (barWidth + barLineSpacing));
+                    }
+
+                    var linePColor = p.color(self.lineColor(self._data, lineNo));
+                    var barPColor  = p.color(self.color(element, i, lineNo));
+                    var usePColor  = linePColor.multiply(barPColor);
+
+                    var bar = self.rect( [x, y]
+                                       , [barWidth, height]
+                                       , {color: usePColor.hex()}
+                                       ).addClass('bar')
+                                        .data(element, line, key, lineNo);
+                    ++i;
+                });
+            }
+        },
+
+        //TODO this should be a function that calculates width, barSpacing, and
+        //barLineSpacing
+        calcBarWidth: function () {
+            if (!this._data)
+                return 0;
+
+            if (this.multiline && this.stacked)
+                return 100 / (_.size(this.dataLine(this._data._data[0])) * 2);
+            if (this.multiline)
+                return (100 / (_.size(this.dataLine(this._data._data[0])) * 2)) / this._data._data.length;
+
+            return 100 / (_.size(this._data._data) * 2);
+        }
+    })); //P.chart.bar
+})(pythia);
+;(function (p) {
+    "use strict";
+
+    p.element.element('lineChart', p.Class(p.chart, {
+        init: function () {
+            this.refresh();
+        },
+
+        defaultOptions: [
+          ['multiline', false],
+          ['stacked', false],
+          ['percent', false],
+          ['roundLongest', false],
+          ['fill', false]],
+
+        hasPositiveData: function () {
+            var self = this;
+            return _.any(self._data._data, function(d) {
+              var values = _.map(self.dataLine(d), self.dataValue);
+              return _.any(values, greaterThanZero);
+            });
+
+            function greaterThanZero(v) {
+              return v > 0;
+            }
+        },
+
+        refresh: function() {
+            this._r.pause();
+            this.killAllAnimations();
+            if (_.isEmpty(this._data._data)) {
+                this.clear();
+                return;
+            }
+
+            this.flipCache();
+
+            var lines;
+            this.lines = lines = [];
+
+            var self             = this,
+                multiline        = this._opts.multiline   || false,
+                stacked          = this._opts.stacked     || false,
+                strokeWidth      = this._opts.strokeWidth || 0,
+                fill             = this._opts.fill        || false,
+                percent          = this._opts.percent     || false,
+                lineColor        = p.accessor(this._opts.lineColor , this._style.color),
+                marker           = this._opts.marker      || 4, //TODO
+                cumulativeHeight = [],
+                cumulativeValue  = [],
+                lastLine,
+                longest      = percent ? 100 : p.max(this._data._data, this.dataValue, this.dataLine, multiline, stacked),
+                shortList    = pythia.shortList(this._data._data, this.dataValue, this.dataLine, multiline, stacked),
+                shortest     = _.min(shortList),
+                // Negative stacked graphs need to pull positive lines down
+                // twice as far so the upper most line reflects the sum of
+                /// all the data points
+                negativeDrag = 1;
+
+            var stepSize,
+                totals = {},
+                counts = {};
+
+            var data = this._data._data;
+            if (multiline && percent) {
+                for (var lineKey in data) {
+                    var line = self.dataLine(data[lineKey]);
+                    for (var key in line) {
+                        var d = line[key];
+                        if (_.isUndefined(totals[key])) {
+                            totals[key] = 0;
+                            counts[key] = 0;
+                        }
+                        totals[key] += Math.abs(this.dataValue(d, key, lineKey));
+                        counts[key] += 1;
+                    }
+                }
+
+                // Mark the x axis in units of 25%
+                this.stepCount = 4;
+
+                if (shortest < 0) {
+                    var minPercent = 0,
+                        negative25,
+                        i, len;
+
+                    for (i = 0, len = shortList.length; i < len; ++i) {
+                        shortList[i] = (shortList[i]/totals[i]) * 100;
+                        if (shortList[i] < minPercent) {
+                            minPercent = shortList[i];
+                        }
+                    }
+
+                    negative25 = Math.floor(minPercent / 25);
+                    shortest   = negative25 * 25;
+                    this.stepCount -= negative25;
+                }
+
+                this.step = (100 - shortest) / this.stepCount;
+            } else {
+                if (shortest < 0 && this.hasPositiveData()) {
+                    negativeDrag = 2;
+                }
+
+                var longShort = pythia.axisScale(longest, shortest * negativeDrag, 5);
+
+                longest        = longShort[0];
+                shortest       = longShort[1];
+                this.step      = longShort[2];
+                this.stepCount = 5;
+            }
+
+            if (this._opts.roundLongest) {
+                longest = this.roundLongest(longest);
+            }
+
+            this.longest  = longest;
+            this.shortest = shortest;
+
+
+            var yOffset    = shortest < 0 ? -1 * shortest : 0, // Account for negative space below the x axis
+                yTransform = 100/(longest + yOffset);          // Multiply y values into height in the renderer
+
+            if (yTransform === Infinity) {
+              yTransform = 0;
+            }
+
+            var zeroHeight = yOffset * yTransform,             // Height of the zero x axis
+                dSize,
+                types = [];
+
+            if (multiline) {
+                dSize = _.size(this.dataLine(data[0]));
+            } else {
+                dSize = _.size(data);
+            }
+
+            if (dSize > 1) {
+                stepSize =  100 / (dSize - 1);
+            } else {
+                stepSize = 100;
+            }
+
+            if (multiline) {
+                _.each(data.reverse(), addLine);
+            } else { //not multiline
+                addLine(data, 0);
+            }
+            if (lastLine) {
+                for (var l = 0; l < lastLine.length; ++l) {
+                  lastLine[l]._last = true;
+                }
+            }
+
+            function addLine(line, lineNumber) {
+                var vertices     = [],
+                    oldHeight    = [],
+                    i            = 0,
+                    line_i       = 0,
+                    points       = [],
+                    current_type = '',
+                    dline        = self.dataLine(line),
+                    dLineId      = self.dataLineId(line);
+
+                var cached = self.cache(dLineId, 'line'),
+                    lineElements = cached || [],
+                    color = lineColor(line, lineNumber),
+                    colorStyle = {strokeColor: color, lineColor: color, color: color};
+
+
+                for(var key in dline) { if (dline.hasOwnProperty(key)) {
+                    var element = dline[key];
+                    var value, height, offsetHeight;
+
+                    if (percent) {
+                        if (totals[key]) {
+                            value = self.dataValue(element, key, lineNumber)/totals[key] * 100;
+                        } else {
+                            value = 100 / counts[key];
+                        }
+                    } else {
+                        value = self.dataValue(element, key, lineNumber);
+                    }
+                    oldHeight[i] = cumulativeHeight[i] = cumulativeHeight[i] || (zeroHeight + ((negativeDrag * shortList[i]) * yTransform));
+
+                    if (stacked) {
+                        height = value * yTransform;
+                    } else {
+                        height = (value + yOffset) * yTransform;
+                    }
+
+                    cumulativeValue[i] = cumulativeValue[i] || 0;
+
+                    if (stacked) {
+                        if (value < 0) {
+                            offsetHeight = oldHeight[i];
+                            cumulativeHeight[i] = oldHeight[i] -= height;
+                        } else {
+                            offsetHeight = cumulativeHeight[i] = oldHeight[i] + height;
+                        }
+                    } else {
+                        cumulativeHeight[i] += height;
+                        offsetHeight = height;
+                    }
+
+                    cumulativeValue[i] += value;
+
+                    var y = 100 - offsetHeight;
+                    if (y < 0.001 && y > -0.001) {
+                        y = 0;
+                    }
+
+                    var vertex;
+                    if (dSize > 1) {
+                        vertex = [stepSize * i, y];
+                        vertices.push(vertex);
+                        points.push([element, key, vertex, value]);
+                    } else {
+                        vertex = [50, y];
+                        points.push([element, key, vertex, value]);
+                        vertices = [[0,y], vertex, [100,y]];
+                        vertices[0].type = line.types[key];
+                        vertices[2].type = line.types[key];
+                    }
+                    vertex.type = line.types[key];
+                    ++i;
+
+                    if (vertex.type !== current_type) {
+                        var el    = lineElements[line_i] = self.cache([dLineId, line_i], 'lineSegment'),
+                            style = pythia.Style(colorStyle, self.elementTypeStyle('line', vertex.type));
+
+                        if (!el) {
+                            el = self.line([vertices[0]], style);
+                            el.addClass('lineSegment');
+                            el.data(line, line, line.id, line.id);
+                        } else {
+                            lineElements[line_i].setStyles(style);
+                            lineElements[line_i].refresh();
+                        }
+
+                        lineElements[line_i] = el;
+                        current_type = el.type = vertex.type;
+                        self.cache([dLineId, line_i], 'lineSegment', el);
+
+                        line_i++;
+                    }
+                }}
+
+                lines.push(lineElements);
+                self.cache(self.dataLineId(line), 'line', []);
+
+                var pointElements = [];
+
+                for(var l = 0; l < points.length; ++l) {
+                    var pdata = points[l];
+                    var point = self.cache([self.dataLineId(line), l], 'point');
+
+
+                    if (!point) {
+                        point = self.circleSlice(
+                            pdata[2],
+                            4,
+                            0,
+                            Math.PI * 2.1,
+                            pythia.Style(colorStyle, self.elementTypeStyle('vertex', 'default'))
+                        ).addClass('point');
+
+                        point._style.pointerEvents = 'always';
+                    }
+                    point.parent(lineElements[0]);
+
+                    point.data(pdata[0], line, pdata[1], line.id);
+                    point._total = cumulativeValue[l];
+                    point.value = pdata[3];
+
+
+                    pointElements.push(point);
+                    self.cache([self.dataLineId(line), l], 'point', point);
+                }
+
+                var path;
+
+                if (fill) {
+                    path = self.cache([dLineId], 'fill') || [];
+
+                    for (i = 0; i < lineElements.length; ++i) {
+                        path[i] = self.cache([dLineId, i], 'fillSegment');
+
+                        if (!path[i]) {
+                            path[i] = self.path()
+                                          .move(vertices[0])
+                                          .addClass('fill')
+                                          .toBottom();
+                            path[i]._vertices = vertices;
+
+                            path[i].oldBottom = oldHeight;
+                            path[i]._vertices = vertices;
+                        } else {
+                            path[i].wasFill = true;
+                            path.oldBottom = path[i].oldBottom;
+                        }
+
+                        path[i]._style = pythia.Style(colorStyle, self.elementTypeStyle('fill', lineElements[i].type));
+                        path[i].refresh();
+
+                        self.cache([dLineId, i], 'fillSegment', path[i]);
+                    }
+
+                    for (i = 0; i < path.length; ++i) {
+                        path[i].data(line, line, line.id, line.id);
+                    }
+                    self.cache([self.dataLineId(line)], 'fill', []);
+                }
+
+                if (cached) {
+                    self.animate(
+                        self.doTranslate(
+                            lineElements,
+                            pointElements,
+                            vertices,
+                            path,
+                            oldHeight,
+                            fill && path[0].oldBottom && path[0].oldBottom.slice(0)
+                        ),
+                        400
+                    );
+                } else {
+                    self.animate(
+                        self.doEnter(
+                            lineElements,
+                            pointElements,
+                            vertices,
+                            path,
+                            oldHeight
+                        ),
+                        400
+                    );
+                }
+                lastLine = lineElements;
+            }
+
+            this.flushCache();
+            this._r.unPause();
+
+            return this;
+        },
+
+        elementTypeStyle: function (element, type) {
+            var elementStyle = this._opts.elementStyle[element],
+                typeStyle = elementStyle[type];
+
+            if (typeStyle) {
+              return typeStyle;
+            } else {
+              return elementStyle['default'];
+            }
+        },
+
+
+        doEnter: function (lines, points, vertices, fills, fillBottom) {
+            var length = vertices.length,
+                self = this;
+            fillBottom = _.map(fillBottom, function (n) {return 100 - n;});
+
+            return function (scale) {
+                var x, y, i, line_i = 0, xTmp, furthest = 0;
+
+                var furthestIndex = scale * (length - 1),
+                    line = lines[0],
+                    fill,
+                    offset = 0,
+                    type,
+                    v_i;
+
+                if (fills) {
+                    for (i = 0; i < fills.length; ++i) {
+                        fills[i].reset();
+                        fills[i].lineElement = lines[i];
+                    }
+                    fill = fills[0];
+                    fill.offset = offset;
+                    fill.lineElement = line;
+                }
+
+                for (i = 0; i < furthestIndex && i < length; ++i) {
+                    v_i = i - offset;
+                    x = vertices[i][0];
+                    y = vertices[i][1];
+                    type = vertices[i].type;
+
+                    if (!line._vertices[v_i]) {
+                        line._vertices[v_i] = [x,y];
+                    } else {
+                        line._vertices[v_i][0] = x;
+                        line._vertices[v_i][1] = y;
+                    }
+
+                    if (fill) {
+                        if (v_i === 0) {
+                            fill.move([x,y]);
+                        } else {
+                            fill.line([x,y]);
+                        }
+                    }
+
+                    if (i + 1 < length && vertices[i + 1].type !== type) {
+                        type = vertices[i + 1].type;
+                        line.updateTransform();
+                        line_i++;
+                        line = lines[line_i];
+                        offset = i;
+                        line._vertices[0] = [x, y];
+
+                        if (fill) {
+                            fill = fills[line_i];
+                            fill.move([x,y]);
+                            fill.lineElement = line;
+                            fill.offset = offset;
+                        }
+                    }
+                }
+
+                var furthestPoint, furthestLine;
+
+                if (i < length) {
+                    furthestPoint = interpolatePoint(vertices, scale);
+                    furthestLine = line;
+                    line._vertices[i - offset] = furthestPoint;
+                }
+
+                line.updateTransform();
+
+                if (fill) {
+                    var j;
+
+                    for (i = 0; i < fills.length; ++i) {
+                        fill = fills[i];
+                        line = fill.lineElement;
+                        j = line._vertices.length - 1;
+                        offset = fill.offset;
+
+                        if (j) {
+                            if (furthestPoint && line === furthestLine) {
+                                var furthestBottom = interpolate(fillBottom, offset, scale);
+                                fill.line(furthestPoint);
+                                fill.line([furthestPoint[0], furthestBottom]);
+                                j--;
+                            }
+                            for (; j >= 0; --j) {
+                                fill.line([line._vertices[j][0], fillBottom[j + offset]]);
+                            }
+                            fill.updateTransform();
+                        }
+                    }
+                }
+            };
+        },
+
+
+        doTranslate: function (lines, points, newVertices, fills, fillBottom, oldFillBottom) {
+            var length = newVertices.length,
+                i;
+
+            return function (scale) {
+                var x, y, i, v_i, line, fill, oldVertex, type, offset = 0, line_i = 0;
+                line = lines[0];
+                type = lines[0].type;
+
+                if (fills) {
+                    for (i = 0; i < fills.length; ++i) {
+                        fills[i].reset();
+                    }
+                    fill = fills[0];
+                    fill.lineElement = line;
+                    fill.offset = 0;
+                }
+
+                for (i = 0; i < length; ++i) {
+                    v_i = i - offset;
+
+                    oldVertex = line._vertices[v_i];
+                    if (oldVertex === undefined) {
+                        oldVertex = line._vertices[v_i === 0 ? v_i + 1 : v_i - 1];
+                        if (oldVertex === undefined) {
+                            oldVertex = [0, 0];
+                        }
+                        line._vertices[v_i] = [];
+                    }
+
+                    x = (newVertices[i][0] - oldVertex[0]) * scale + oldVertex[0];
+                    y = (newVertices[i][1] - oldVertex[1]) * scale + oldVertex[1];
+
+                    line._vertices[v_i][0] = x;
+                    line._vertices[v_i][1] = y;
+
+                    if (fill) {
+                        if (i === 0) {
+                            fill.move([x,y]);
+                        } else {
+                            fill.line([x,y]);
+                        }
+                    }
+
+                    if (points.length > 1) {
+                        points[i]._pos = [x,y];
+                        points[i].repath();
+                        points[i].updateTransform();
+                    }
+
+                    if (i + 1 < length && newVertices[i + 1].type !== type) {
+                        line._vertices.splice(i - offset + 1, line._vertices.length);
+
+                        type = newVertices[i + 1].type;
+                        line_i++;
+                        line.updateTransform();
+                        line = lines[line_i];
+                        offset = i;
+                        line._vertices[0] = [x, y];
+
+
+                        if (fill) {
+                            fill = fills[line_i];
+                            fill.move([x,y]);
+                            fill.lineElement = line;
+                            fill.offset = offset;
+                        }
+                    }
+                }
+
+                line._vertices.splice(i - offset, line._vertices.length);
+
+                if (points.length === 1) {
+                    points[0]._pos = [50,0];
+                    points[0].repath();
+                    points[0].updateTransform();
+
+                    fillBottom = [0,0,0];
+                }
+
+                if (fill) {
+                    var j, jlen, vertices;
+
+                    for (j = 0, jlen = fills.length; j < jlen; ++j) {
+                        fill = fills[j];
+                        offset = fill.offset;
+                        vertices = fill.lineElement._vertices;
+
+                        for (i = vertices.length - 1; i >= 0; --i) {
+                           var height,
+                               heightScale, heightFinal;
+
+                           if (!fill.wasFill) {
+                               heightScale = scale * 100;
+                               heightFinal = fillBottom[i + offset];
+
+                               height = 100 - Math.min(heightScale, heightFinal);
+                           } else {
+                               height = 100 - (scale * (fillBottom[i + offset] - oldFillBottom[i + offset]) + oldFillBottom[i + offset]);
+                               height = height || (100 - fillBottom[i + offset]);
+                           }
+
+                           fill.line([vertices[i][0], height]);
+                        }
+                        fill.updateTransform();
+
+                        fill.oldBottom = fillBottom;
+                    }
+                }
+
+                line.updateTransform();
+                if (fill) {
+                    fill.updateTransform();
+                }
+            };
+        }
+    }));
+
+
+    function interpolateDim(points, dim, t) {
+        var count = points.length - 1;
+
+        var startIndex = furthestIndex(count, t),
+            start      = points[startIndex][dim],
+            endIndex   = startIndex === t * count ? startIndex : startIndex + 1,
+            end        = points[endIndex][dim],
+            subT       = t - startIndex;
+
+        return start + subT * (end - start);
+    }
+
+    function interpolate(points, offset, t) {
+        var count = points.length - 1;
+
+        var startIndex = Math.floor(t * count),
+            start      = points[startIndex],
+            endIndex   = startIndex === count ? count : startIndex + 1,
+            end        = points[endIndex],
+            subT       = (t * count) - startIndex;
+
+        return start + subT * (end - start);
+    }
+
+    function interpolatePoint(points, t) {
+        var count = points.length - 1;
+
+        var startIndex = Math.floor(t * count),
+            start      = points[startIndex],
+            endIndex   = startIndex === count ? count : startIndex + 1,
+            end        = points[endIndex],
+            subT       = t * count - startIndex;
+
+        return [start[0] + subT * (end[0] - start[0]),
+                start[1] + subT * (end[1] - start[1])];
+    }
+
+})(pythia);
+;(function(p) {
+    p.element.element('pieChart', p.Class(p.chart, {
+        init: function () {
+            var self        = this;
+            this.radius     = self._opts.radius  || 48;
+            this.x          = self._opts.x       || 50;
+            this.y          = self._opts.y       || 50;
+
+            this.refresh();
+        },
+
+        defaultOptions: [
+            ['multiline', false]
+        ],
+
+        refresh: function() {
+            "use strict";
+            this._r.pause();
+            this.killAllAnimations();
+            if (_.isEmpty(this._data._data)) {
+                this.clear();
+                return;
+            }
+
+            this.flipCache();
+
+            var self  = this,
+                total = _.reduce(self._data._data, function (sum, el) { return sum + self.dataValue(el); }, 0);
+            var count = 0;
+
+            self.pos = self.pos || 0;
+
+            if (self._opts.multiline) {
+                _.all(self.dataLine(self._data._data[0]), function(line, key) {
+                    key = self.pos;
+                    var data = _.zip(_.pluck(_.map(self._data._data, self.dataLine), key), _.keys(self._data._data));
+
+                    total = _.reduce(data, function (sum, el) {
+                        var value = Math.abs(self.dataValue(el[0]));
+                        return sum + value;
+                    }, 0);
+
+                    addLine(data, key);
+                    return false;
+                });
+            } else { //not multiline
+                addLine(self._data._data, 0);
+            }
+
+            function addLine(data, lineNo) {
+                var startAngle = Math.PI / 6;
+                var animation;
+
+                _.each(data, function(zipped, i) {
+                    var el      = zipped[0],
+                        lineKey = zipped[1],
+                        line    = self._data._data[lineKey],
+                        value   = self.dataValue(el, i, lineNo),
+                        ratio,
+                        angle,
+                        opacity = 0.6;
+
+                    if (_.isUndefined(value)) {
+                        return;
+                    }
+
+                    if (value < 0) {
+                        opacity = 0.01;
+                    }
+
+                    if (total) {
+                        ratio = (Math.abs(value) / total);
+                        angle = ratio * 2 * Math.PI;
+                    } else {
+                        angle = 2 * Math.PI / data.length;
+                    }
+
+                    var lineId = self.dataLineId(self._data._data[lineKey]),
+                        slice  = self.cache(lineId, 'slice');
+
+                    if (!slice) {
+                        slice = self.circleSlice(
+                            [self.x, self.y],
+                            self.radius,
+                            startAngle,
+                            0,
+                            p.Style(self.style, {
+                                color:         line.color,
+                                size:          'proportional',
+                                fillOpacity:   opacity,
+                                stroke:        line.color,
+                                strokeColor:   line.color,
+                                strokeOpacity: 0.6
+                            })
+                        ).addClass('slice')
+                         .data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id);
+
+                        ratio = angle / (2 * Math.PI);
+                        var a = self.animate(morph(slice, slice._startAngle, slice._angle, startAngle, angle), ratio * 500);
+
+                        if (animation) {
+                            animation = animation.chain(a);
+                        } else {
+                            animation = a;
+                        }
+
+                    } else {
+                        slice._pos    = [self.x, self.y];
+                        slice._radius = self.radius;
+                        slice.data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id);
+
+                        // Don't flip styles on 0
+                        if (value < 0) {
+                            slice.setStyle('fillOpacity', 0.1);
+                        } else if (value > 0) {
+                            slice.setStyle('fillOpacity', 0.6);
+                        }
+
+                        ratio = Math.abs(angle) / (2 * Math.PI);
+                        self.animate(morph(slice, slice._startAngle, slice._angle, startAngle, angle), 500);
+                    }
+                    slice.percent = ratio * 100;
+                    startAngle += angle;
+                    self.cache(lineId, 'slice', slice);
+                });
+            }
+            this.flushCache();
+            this._r.unPause();
+        }
+    }));
+
+    function morph(slice, oldStartAngle, oldAngle, startAngle, angle) {
+        return function (scale) {
+            slice._startAngle = oldStartAngle + (startAngle - oldStartAngle) * scale;
+            slice._angle      = oldAngle + (angle - oldAngle) * scale;
+
+            slice.updateTransform();
+        };
+    }
+
+})(pythia);
+;(function(p) {
+    // Default Options
+    //
+    // Array of key/value pairs because it's better if options are evaluated in
+    // this order.
+    var defaultOptions = [
+        [ 'container', 'auto' ]
+      , [ 'renderer', 'auto' ]
+      , [ 'size', [10,10] ]
+    ];
+
+    p.canvas = p.Class(pythia.element, {
+        init: function (container, options) {
+            options = options || {};
+            options.container = container;
+
+            this.options(defaultOptions, options);
+        },
+
+        renderer: function (r) {
+            if (!r) {
+                return this._r;
+            }
+
+            if (r === 'auto') {
+                if (pythia.svgSupported()) {
+                    r = 'raphael';
+                } else if (pythia.canvasSupported()) {
+                    r = 'canvas';
+                } else if (pythia.vmlSupported()) {
+                    r = 'vml';
+                }
+            }
+
+            this._r = pythia.renderer[r](this._container, this);
+
+            return this;
+        },
+
+        container: function (container) {
+            if (!container) {
+                return this._r._container;
+            }
+
+            if (container === 'auto') {
+                container = document.body;
+            } else if (typeof container === 'string') {
+                container = document.getElementById(container);
+            }
+
+            this._container = container;
+            //this._r.container(container);
+
+            return this;
+        },
+
+        size: function() {
+            if (arguments.length) {
+                if (_.isArray(arguments[0])) {
+                    this._r.size(arguments[0]);
+                } else {
+                    //TODO auto size by parent?
+                    this._r.size([arguments[0], arguments[1]]);
+                }
+                this.dirtyScale = true;
+                return this;
+            }
+            return this._r._size;
+        }
+    });
+})(pythia);
+;(function(window, pythia, doc, r, _, clearTimeout, setInterval, setTimeout) {
+    "use strict";
+
+    r.init = function (container, element) {
+        this._classes    = {};
+        this._lastUpdate = 0;
+        this._root       = element;
+
+        this._paused     = 0; // The time when we paused
+        this._timePaused = 0; // The cumulative amount of time we spent paused
+
+        this.transform = [ 1, 0, 0,
+                           0, 1, 0,
+                           0, 0, 1
+                         ];
+        processAnimations._r = this;
+
+        pythia.span = doc.createElement('athena');
+        // 1.2 to roughly correspond with how raphael ends up spacing fonts
+        pythia.span.style.cssText = "position:absolute;left:-9999em;top:-9999em;padding:0;margin:0;line-height:1.2";
+        container.appendChild(pythia.span);
+    };
+
+    r.unPause = function () {
+        if (this._paused) {
+            this._timePaused += pythia.ticks() - this._paused;
+            this._paused = 0;
+            this.checkAnim();
+        }
+    };
+
+    r.pause = function () {
+        if (!this._paused) {
+            this._paused = pythia.ticks();
+            this.checkAnim();
+        }
+    };
+
+    r.size = function (dim) {
+        this._size = dim;
+        this.transform = [ dim[0]/100, 0         , 0,
+                           0         , dim[1]/100, 0,
+                           0         , 0         , 1
+                         ];
+        this.updateTransform();
+    };
+
+    r.updateTransform = function (render) {
+        var self = this;
+        var now = pythia.ticks();
+        var step = now - this._lastUpdate;
+        if (step > 15) {
+            this._lastUpdate = now;
+            if (self.timer) {
+                clearTimeout(self.timer);
+                self.timer = false;
+            }
+
+            //TODO slice relies on this. It's wrong. Delete and fix slice
+            this._root.updateTransform(this.transform);
+            if (render !== false)
+                this.render();
+        } else if (!this.timer) {
+            self.timer = setTimeout(function () {
+              self.timer = false;
+              self.updateTransform();
+            }, 15 - step);
+        }
+    };
+
+    r.refresh = function () {
+        refresh(this._root._children);
+
+        function refresh(elements) {
+            _.each(elements, function (e) {
+                e.refresh();
+                refresh(e._children);
+            });
+        }
+    };
+
+    pythia.renderer = pythia.Class(r);
+
+    r.defaultWindow = function(win) {
+        this.win = win;
+    };
+
+    var animationId = 0;
+    var animations = {};
+
+    r.animate = function (ctx, callback, duration) {
+        var id = animationId++;
+        var start;
+
+        var anim = animations[id] = {
+            id: id,
+            callback: callback,
+            duration: duration,
+            ctx: ctx,
+            start:   -1,
+            next:    [],
+            chain: function (a) {
+                delete animations[a.id];
+                anim.next.push(a);
+                return a;
+            }
+        };
+        this.checkAnim();
+
+        return anim;
+    };
+
+    var last = 0;
+    var processAnimations = function () {
+        var self           = processAnimations._r,
+            frameStartTime = pythia.ticks() - self._timePaused,
+            timeScale;
+
+        _.each(animations, function (a, id) {
+            if (a.start === -1) {
+                a.start = frameStartTime;
+                return;
+            }
+
+            while (a) {
+                if (pythia.disableAnimations) {
+                    timeScale = 1;
+                } else {
+                    timeScale = Math.min((frameStartTime - a.start) / a.duration,1);
+                }
+
+                try {
+                    a.callback.call(a.ctx, timeScale);
+                } catch (e) {
+                    // TODO throw sentry error here
+                    // failed to animate
+                    delete animations[id];
+                    throw e;
+                }
+
+                // TODO nested chains
+                if (timeScale === 1) {
+                    delete animations[id];
+                    if (a.next.length !== 0) {
+                        var next = a.next.shift();
+                        next.start = a.start + a.duration;
+                        animations[next.id] = next;
+                        a = next;
+                    } else {
+                      a = false;
+                    }
+                } else {
+                    a = false;
+                }
+            }
+        });
+        last = frameStartTime;
+        self._frame = 0;
+
+        self.checkAnim();
+    };
+
+    r.killAnimation = function (id) {
+        delete animations[id];
+    };
+
+    r.checkAnim = function () {
+        if (this._paused || _.isEmpty(animations)) {
+            if (this._animating) {
+                this._animating = false;
+                this._animationDuration = pythia.ticks() - this._animationStart;
+                this.trigger('animation_complete', this._animationDuration, this._frameCount);
+            }
+            if (this._interval) {
+                clearTimeout(this._interval);
+                this._interval = false;
+            }
+        } else {
+            if (!this._frame) {
+                if (!this._animating) {
+                    this._animating = true;
+                    this._animationStart = pythia.ticks();
+                    this._frameCount = 0;
+                }
+                this._frameCount++;
+                this._frame = pythia.requestFrame.call(window, processAnimations);
+            }
+        }
+    };
+
+    r.Window = pythia.Class({
+        init: function (x, y, w, h) {
+            this.translateT = [ 1, 0, x,
+                                0, 1, y,
+                                0, 0, 1
+                              ];
+            this.scaleT = [ w/100, 0    , 0,
+                            0    , h/100, 0,
+                            0    , 0    , 1
+                          ];
+
+            this.transform = [ w/100, 0    , x,
+                               0    , h/100, y,
+                               0    , 0    , 1
+                             ];
+            //Are we using these?
+            this.x = x;
+            this.y = y;
+            this.scaleX = w/100;
+            this.scaleY = h/100;
+        },
+
+        add: function (el) {
+            el.window = this;
+            return this;
+        }
+    });
+
+    pythia.mMulM = function (m1, m2) {
+        return [m1[0] * m2[0] + m1[1] * m2[3] + m1[2] * m2[6],
+                m1[0] * m2[1] + m1[1] * m2[4] + m1[2] * m2[7],
+                m1[0] * m2[2] + m1[1] * m2[5] + m1[2] * m2[8],
+
+                m1[3] * m2[0] + m1[4] * m2[3] + m1[5] * m2[6],
+                m1[3] * m2[1] + m1[4] * m2[4] + m1[5] * m2[7],
+                m1[3] * m2[2] + m1[4] * m2[5] + m1[5] * m2[8],
+
+                m1[6] * m2[0] + m1[7] * m2[3] + m1[8] * m2[6],
+                m1[6] * m2[1] + m1[7] * m2[4] + m1[8] * m2[7],
+                m1[6] * m2[2] + m1[7] * m2[5] + m1[8] * m2[8]];
+    };
+
+    pythia.sMulM = function (s, m) {
+        return [s * m[0], s * m[1], s * m[2],
+                s * m[3], s * m[4], s * m[5],
+                s * m[6], s * m[7], s * m[8]];
+    };
+
+    pythia.mMulV = function (m, v) {
+        return [ m[0] * v[0] + m[1] * v[1] + m[2],
+                 m[3] * v[0] + m[4] * v[1] + m[5]
+               ];
+    };
+
+    pythia.measureText = function (text, textStyle) {
+        var span  = pythia.span,
+            style = span.style,
+            bounds;
+
+        if (textStyle.fontSize) {
+          style.fontSize = textStyle.fontSize + 'px';
+        }
+
+        if (textStyle.fontFamily) {
+          style.fontFamily = textStyle.fontFamily;
+        }
+
+        doc.body.appendChild(span);
+        span.innerHTML = text.replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1<br>$2');
+        bounds = span.getBoundingClientRect();
+
+        return [
+            bounds.right - bounds.left + 8,
+            bounds.bottom - bounds.top
+        ];
+    };
+})(window, pythia, document, {}, _, clearTimeout, setInterval, setTimeout);
+;(function (p) {
+    "use strict";
+
+    var r = {};
+
+    r.remove = function (el) {
+        if (el._raph) {
+            el._raph.remove();
+        }
+    };
+
+    r.init = function (container, element) {
+        var r = this;
+        this._paper = Raphael(container).setSize(10,10);
+
+        pythia.element.append('refresh', function () {
+            var self = this;
+
+            var old = this._raph;
+            if (this._path)
+                this._raph = r.path(this._path, this._style, this._raph);
+
+            this._mousedOver = false;
+
+            var onMouseOver = self.processEvent('mouseover');
+            var onMouseOut = self.processEvent('mouseout');
+            //TODO fix events on refreshed text
+            if (old !== this._raph) {
+                //this._raph.hover(this.processEvent('mouseover'), this.processEvent('mouseout'), this, this);
+                this._raph.hover(function () {
+                    if (!self._mousedOver) {
+                        self._mousedOver = true;
+                        onMouseOver.call(self);
+                    }
+                }, function () {
+                    if (self._mousedOver) {
+                        self._mousedOver = false;
+                        onMouseOut.call(self);
+                    }
+                }, this, this);
+                this._raph.click(this.processEvent('click'), this);
+            }
+
+            return this;
+        });
+
+        pythia.element.append('center', function () {
+            var box = this._raph.getBBox(true);
+            return [box.x + box.width/2, box.y + box.height/2];
+        });
+
+        pythia.element.append('bounds', function () {
+            var box = this._raph.getBBox(true);
+            return {min: [box.x, box.y], max:[box.x2, box.y2]};
+        });
+
+        function elementToTop(e) {
+            e.toTop();
+        }
+        function elementToBottom(e) {
+            e.toBottom();
+        }
+
+        pythia.element.extend('toTop', function () {
+            if (this._raph)
+                this._raph.toFront();
+            _.each(this._children, elementToTop);
+        });
+
+        pythia.element.extend('toBottom', function () {
+            _.each(this._children, elementToBottom);
+            if (this._raph)
+                this._raph.toBack();
+            return this;
+        });
+
+        pythia.element.extend('calcTransform', function (cumulativeT) {
+            var scaleX, scaleY, cumulativeS;
+            // Fix for bug sometimes on pie (esp. large initial views)
+            // neither cumulativeT nor _parent._totalT will be initialized
+            // so default to identity matrix
+            // TODO: Find specific cause
+            cumulativeT = cumulativeT || this._parent._totalT || [1,0,0,0,1,0,0,0,1];
+            this._scale = 1;
+
+            if (this.hasClass('port')) {
+                scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
+                scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
+                var sx = ((this._r._size[0] - this._dim[0]) / 100) / scaleX;
+                var sy = ((this._r._size[1] - this._dim[1]) / 100) / scaleY;
+                this.scaleT = [ sx, 0 , 0,
+                                0 , sy, 0,
+                                0 , 0 , 1
+                              ];
+            }
+
+            if (this._style.size === 'fixed') {
+                cumulativeS = p.mCopy(cumulativeT);
+
+                scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
+                scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
+                cumulativeS[0] = cumulativeT[0] / scaleX;
+                cumulativeS[1] = cumulativeT[1] / scaleX;
+                cumulativeS[3] = cumulativeT[3] / scaleY;
+                cumulativeS[4] = cumulativeT[4] / scaleY;
+            } else {
+                cumulativeS = cumulativeT;
+            }
+
+            var pos = [this.translateT[2], this.translateT[5]];
+
+            if (this.hasClass('text')) {
+                if (this._raph) {
+                    if (this._style.baseline === 'bottom') {
+                        var box = this._raph.getBBox(true);
+                        pos[1] -= box.height/2;
+                    } else if (this._style.baseline === 'top') {
+                        var box = this._raph.getBBox(true);
+                        // If the text has been rotated rotate the baseline
+                        // shift approprately
+                        var tx = -this.rotateT[1] * box.height/2,
+                            ty = this.rotateT[4] * box.height/2;
+
+                        pos[0] += tx;
+                        pos[1] += ty;
+                    }
+                }
+            }
+
+            var newPos;
+            if (this._style && this._style['position'] === 'fixed-horizontal') {
+
+                var transformedPos = p.mMulV(cumulativeT, pos);
+                newPos = [transformedPos[0], pos[1]];
+
+            } else if (this._style && this._style['position'] === 'fixed-vertical') {
+
+                var transformedPos = p.mMulV(cumulativeT, pos);
+                newPos = [pos[0], transformedPos[1]];
+
+            } else if (this._style && this._style['position'] === 'fixed') {
+
+                newPos = pos;
+
+            } else {
+                newPos = p.mMulV(cumulativeT, pos);
+            }
+
+            if (this._style && this._style['yrelative'] === 'bottom') {
+                newPos[1] = this._r._size[1] - newPos[1];
+            }
+
+
+            var transform = p.mCopy(this.scaleT);
+
+            var totalT = p.mMulM(cumulativeS, transform);
+            totalT = p.mMulM(this.rotateT, totalT);
+            totalT[2] = newPos[0];
+            totalT[5] = newPos[1];
+
+
+            if (this._style.size === 'proportional') {
+                var scaleX = Math.sqrt(totalT[0] * totalT[0] + totalT[1] * totalT[1]);
+                var scaleY = Math.sqrt(totalT[3] * totalT[3] + totalT[4] * totalT[4]);
+
+                if (scaleX > scaleY) {
+                    var rescale = scaleY / scaleX;
+                    totalT[0] *= rescale;
+                    totalT[1] *= rescale;
+                    this._proportionalDim = 0;
+                    this._scale = scaleY;
+                } else {
+                    var rescale = scaleX / scaleY;
+                    totalT[3] *= rescale;
+                    totalT[4] *= rescale;
+                    this._proportionalDim = 1;
+                    this._scale = scaleX;
+                }
+            }
+
+            this._proportianalScale = rescale;
+
+            this._totalT = totalT;
+
+            return this._totalT;
+        });
+
+        pythia.element.extend('renderedPos', function (pos) {
+            var totalT = this.calcTransform();
+            return p.mMulV(totalT, pos);
+        });
+
+        pythia.element.extend('updateTransform', function (cumulativeT) {
+            var totalT = this.calcTransform(cumulativeT),
+                i, len, path;
+
+            // Workaround for bad line scaling in firefox and older webkit
+            // and IE
+            if (this.hasClass('line') && this._vertices.length) {
+                var vert = pythia.mMulV(this._totalT, this._vertices[0]);
+
+                path = ['M' + vert[0] + ' ' + vert[1] + 'L'];
+
+                for (i = 0, len = this._vertices.length; i < len; ++i) {
+                    vert = pythia.mMulV(this._totalT ,this._vertices[i]);
+                    path.push(vert[0]);
+                    path.push(vert[1]);
+                }
+
+                this._raph.node.style.strokeWidth = this._style.strokeWidth || this.strokeWidth || 2;
+
+                this._raph.attr('path', path.join(' '));
+            } else if (this.hasClass('path')) {
+                path = [];
+                for (i = 0, len = this._path.length; i < len; ++i) {
+                    var pt = this._path[i];
+                    if (_.isArray(pt)) {
+                        path.push(pythia.mMulV(this._totalT, pt));
+                    } else {
+                        path.push(pt);
+                    }
+                }
+
+                if (len) {
+                    this._raph.attr('path', path);
+                }
+            } else if (this.hasClass('circleSlice') && this._pos) {
+                var scaleX = Math.sqrt(totalT[0] * totalT[0] + totalT[1] * totalT[1]);
+                var scaleY = Math.sqrt(totalT[3] * totalT[3] + totalT[4] * totalT[4]);
+                var isCircle;
+
+                if ((1.99 * Math.PI) < this._angle) {
+                    isCircle = true;
+                }
+
+                var pos    = pythia.mMulV(totalT, [0,0]);
+                var radius = this._radius * (scaleX > scaleY ? scaleX : scaleY);
+                var pathL = [];
+
+                if (false && isCircle) {
+                    if (!this._raph.isCircle) {
+                        var oldattr = this._raph.attr();
+                        this._raph.remove();
+                        this._raph = this._r._paper.circle(pos[0], pos[1], radius);
+                        this._raph.attr(oldattr);
+                        this._raph.isCircle = true;
+                    } else {
+                        this._raph.attr({cx:pos[0], cy:pos[1], radius:radius});
+                    }
+                } else {
+                    var vertCount = Math.floor(radius * this._angle / Math.PI);
+                    vertCount = Math.max(vertCount, 15);
+                    var vertices = arc(pos[0], pos[1], radius, this._startAngle, this._angle, vertCount);
+
+                    for (var i = 0, len = vertices.length; i < len; ++i) {
+                        var v = vertices[i];
+                        //tv = p.mMulV(this._totalT ,v);
+                        pathL.push(v[0]);
+                        pathL.push(v[1]);
+                    }
+                    var joinL = pathL.join(',');
+
+                    if (isCircle) {
+                        var path = 'M' + vertices[0].join(',') + 'L' + joinL;
+                    } else {
+                        var path = 'M' + pos.join(',') + 'L' + joinL;
+                    }
+
+                    this._raph.attr('path', path + 'Z');
+                }
+            } else {
+                var m =  Raphael.matrix(
+                               totalT[0], totalT[1],  totalT[3]
+                             , totalT[4], totalT[2],  totalT[5]);
+
+                if (this._raph) {
+                    this._raph.transform(m.toTransformString());
+                }
+            }
+
+            if (this.hasClass('axis')) {
+                this.toBottom();
+            }
+
+            for (var key in this._children) {
+                var child = this._children[key];
+                if (!child._totalT || this.dirtyScale || this.dirtyPos) {
+                    child.dirtyScale = true;
+                    child.updateTransform();
+                }
+            }
+
+            this.dirtyScale = false;
+
+            return this;
+        });
+
+        pythia.elements.path.extend('arc', function (pos, radius, startAngle, angle) {
+            var self = this;
+            var endAngle = startAngle + angle;
+            var p2 = Math.PI/2;
+
+            var a = 0;
+            while (a < angle) {
+                arc(startAngle, (angle - a) < p2 ? (angle - a) : p2);
+                a += Math.PI/2;
+                startAngle += Math.PI/2;
+            }
+
+            function arc(start, angle) {
+                var endPoint = [radius * Math.cos(startAngle + angle) + pos[0],
+                                radius * Math.sin(startAngle + angle) + pos[1]];
+                self._path.push('A', radius, radius, startAngle, 0, 1, endPoint);
+            }
+
+            return this;
+        });
+
+        pythia.elements.path.append('parent', function () {
+            if (this._parent._raph && this._raph && this._parent._raph.node) {
+                if (this._parent._raph.node.nextSibling) {
+                  this._raph.node.parentNode.insertBefore
+                    (this._raph.node, this._parent._raph.node.nextSibling);
+                } else {
+                  this._raph.node.parentNode.appendChild(this._raph.node);
+                }
+            }
+        });
+
+        pythia.elements.text.append('parent', function () {
+            if (this._parent._raph && this._raph && this._parent._raph.node) {
+                if (this._parent._raph.node.nextSibling) {
+                  this._raph.node.parentNode.insertBefore
+                    (this._raph.node, this._parent._raph.node.nextSibling);
+                } else {
+                  this._raph.node.parentNode.appendChild(this._raph.node);
+                }
+            }
+        });
+    };
+
+    r.path = function(path, style, raphPath) {
+        style = style || {};
+
+        var fill    = (typeof(style.fill) === 'undefined') ? true : style.fill,
+            attr    = {};
+
+        attr.fill   = fill ? (p.color(style.color).html() || p.color(style.fillColor).html())  : "none";
+        if (style.stroke !== false) {
+            attr.stroke          = p.color(style.strokeColor).html();
+            attr['stroke-width'] = style.strokeWidth || 1;
+
+            if (style.strokeOpacity) {
+                attr['stroke-opacity'] = style.strokeOpacity;
+            }
+        } else {
+            attr.stroke = "none";
+        }
+
+        if (style.opacity) {
+            attr.opacity = style.opacity;
+        }
+
+        if (style.fillOpacity) {
+            attr['fill-opacity'] = style.fillOpacity;
+        }
+
+        if (path[0] === 'F') {
+            if (style.fontSize) {
+                attr['font-size'] = style.fontSize;
+            }
+            if (style.fontFamily) {
+                attr['font-family'] = style.fontFamily;
+            }
+            if (style.fontWeight) {
+                attr['font-weight'] = style.fontWeight;
+            }
+            if (style.textAlign === 'right') {
+                attr['text-anchor'] = 'end';
+            }
+            if (style.textAlign === 'left') {
+                attr['text-anchor'] = 'start';
+            }
+
+            attr.stroke = 'none';
+            if (raphPath) {
+                raphPath.remove();
+            }
+            raphPath = this._paper.text(0, 0, path[1]).attr(attr);
+            style.baseline = style.baseline || 'middle';
+
+            var box = raphPath.getBBox(true);
+
+            if (style.baseline === 'bottom') {
+                raphPath.translate(0, -box.height/2);
+            }
+            if (style.baseline === 'top') {
+                raphPath.translate(0, box.height/2);
+            }
+        } else {
+            if (raphPath && path.length) {
+                raphPath.attr('path', path);
+                raphPath.attr(attr);
+            } else {
+                raphPath = this._paper.path(path).attr(attr);
+            }
+            if (style['stroke-dasharray']) {
+                raphPath.node.setAttribute('stroke-dasharray', style['stroke-dasharray']);
+            }
+        }
+
+        if (attr.stroke !== 'none') {
+            raphPath.node.style.strokeWidth = attr['stroke-width'];
+            //raphPath.node.style.vectorEffect = 'non-scaling-stroke';
+        }
+
+        if (style.pointerEvents === 'none') {
+            raphPath.node.style.pointerEvents = 'none';
+        }
+
+        if (style.zIndex) {
+            raphPath.node.style.zIndex = style.zIndex;
+        }
+
+        this.render();
+
+        return raphPath;
+    };
+
+    r.size = function(dim) {
+        this._paper.setSize(dim[0], dim[1]);
+        this.__super.size.call(this, dim);
+    };
+
+    function arc(cx, cy, r, startAngle, angle, steps) {
+        var theta           = angle / (steps - 1),
+            tangetialFactor = Math.tan(theta),
+            radialFactor    = Math.cos(theta),
+            x               = r * Math.cos(startAngle),
+            y               = r * Math.sin(startAngle),
+            vertices        = [],
+            tx,
+            ty,
+            i;
+
+        for(i = 0; i < steps; ++i) {
+            vertices.push([x + cx, y + cy]);
+
+            tx = -y;
+            ty = x;
+
+            x += tx * tangetialFactor;
+            y += ty * tangetialFactor;
+
+            x *= radialFactor;
+            y *= radialFactor;
+        }
+        return vertices;
+    }
+
+    r.render = p.doNil;
+
+    p.renderer.raphael = p.Class(p.renderer, r);
+})(pythia);
+;(function (pythia, doc, math, undefined) {
+    "use strict";
+
+    var renderer  = {},
+        addEvent,
+        contains,
+        zoom      = 21600,
+        cssText   = "position: absolute; width: 1px; height: 1px",
+        coordsize = zoom + ' ' + zoom;
+
+    renderer.remove = function (el) {
+        var mother;
+
+        if (el.vml && (mother = el.vml.parentNode)) {
+            mother.removeChild(el.vml);
+        }
+    };
+
+    function createNode(tagName) {
+        return doc.createElement('<pythiavml:' + tagName + ' class="pythiavml">');
+    }
+
+    renderer.init = function (container, element) {
+        var renderer = this;
+
+        this.container = container;
+
+        doc.createStyleSheet().addRule(".pythiavml", "behavior:url(#default#VML)");
+        doc.namespaces.add('pythiavml', 'urn:schemas-microsoft-com:vml');
+
+        addEvent(container, 'click', function (evt) {
+            var domEl = evt.target || evt.srcElement,
+                id    = domEl.getAttribute('pythia_id');
+
+            if (id) {
+                element = pythia.getElement(id);
+                if (element) {
+                    element.invoke('click');
+                }
+            }
+        });
+
+        addEvent(container, 'mouseenter', function (evt) {
+            var domEl = evt.currentTarget || evt.target || evt.srcElement,
+                from  = evt.fromElement,
+                id    = domEl.getAttribute('pythia_id');
+
+            if (!from || (from !==  domEl && !contains(domEl, from))) {
+                if (id) {
+                    element = pythia.getElement(id);
+                    if (element) {
+                      if (!element._style || element._style.pointerEvents !== 'none') {
+                        element.invoke('mouseover');
+                      }
+                    }
+                }
+            }
+        });
+
+        addEvent(container, 'mouseleave', function (evt) {
+            var domEl = evt.target || evt.srcElement,
+                id    = domEl.getAttribute('pythia_id');
+
+            if (id) {
+                element = pythia.getElement(id);
+                if (element) {
+                    if (!element._style || element._style.pointerEvents !== 'none') {
+                      element.invoke('mouseout');
+                    }
+                }
+            }
+        });
+
+        pythia.element.append('refresh', function () {
+            if (this._path) {
+                renderer.path(this);
+            }
+            return this;
+        });
+
+        pythia.element.append('center', function () {
+            return [10,10];
+        });
+
+        pythia.element.append('bounds', function () {
+            return {min: [10,10], max:[20,20]};
+        });
+
+        function elementToTop(e) {
+            e.toTop();
+        }
+        function elementToBottom(e) {
+            e.toBottom();
+        }
+
+        pythia.element.extend('toTop', function () {
+        });
+
+        pythia.element.extend('toBottom', function () {
+            var parnt;
+
+            if (this.vml) {
+                parnt = this.vml.parentNode;
+                parnt.insertBefore(this.vml, parnt.firstChild);
+            }
+            return this;
+        });
+
+        pythia.element.extend('calcTransform', function (cumulativeT) {
+            // Fix for bug sometimes on pie (esp. large initial views)
+            // neither cumulativeT nor _parent._totalT will be initialized
+            // so default to identity matrix
+            // TODO: Find specific cause
+            cumulativeT = cumulativeT || this._parent._totalT || [1,0,0,0,1,0,0,0,1];
+            this._scale = 1;
+
+            if (this.hasClass('port')) {
+                var scaleX = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]);
+                var scaleY = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
+                var sx = ((this._r._size[0] - this._dim[0]) / 100) / scaleX;
+                var sy = ((this._r._size[1] - this._dim[1]) / 100) / scaleY;
+                this.scaleT = [ sx, 0 , 0,
+                                0 , sy, 0,
+                                0 , 0 , 1
+                              ];
+            }
+
+            if (this._style && this._style.size === 'fixed') {
+                var cumulativeS = pythia.mCopy(cumulativeT),
+                    scaleX      = Math.sqrt(cumulativeT[0] * cumulativeT[0] + cumulativeT[1] * cumulativeT[1]),
+                    scaleY      = Math.sqrt(cumulativeT[3] * cumulativeT[3] + cumulativeT[4] * cumulativeT[4]);
+
+                cumulativeS[0] = cumulativeT[0] / scaleX;
+                cumulativeS[1] = cumulativeT[1] / scaleX;
+                cumulativeS[3] = cumulativeT[3] / scaleY;
+                cumulativeS[4] = cumulativeT[4] / scaleY;
+            } else {
+                cumulativeS = cumulativeT;
+            }
+
+
+            var pos = [this.translateT[2], this.translateT[5]];
+
+            var newPos;
+            if (this._style && this._style.position === 'fixed-horizontal') {
+
+                var transformedPos = pythia.mMulV(cumulativeT, pos);
+                newPos = [transformedPos[0], pos[1]];
+
+            } else if (this._style && this._style.position === 'fixed-vertical') {
+
+                var transformedPos = pythia.mMulV(cumulativeT, pos);
+                newPos = [pos[0], transformedPos[1]];
+
+            } else if (this._style && this._style.position === 'fixed') {
+
+                newPos = pos;
+
+            } else {
+                newPos = pythia.mMulV(cumulativeT, pos);
+            }
+
+            if (this._style && this._style.yrelative === 'bottom') {
+                newPos[1] = this._r._size[1] - newPos[1];
+            }
+
+
+            var transform = pythia.mCopy(this.scaleT);
+
+            var totalT = pythia.mMulM(cumulativeS, transform);
+            totalT = pythia.mMulM(this.rotateT, totalT);
+            totalT[2] = newPos[0];
+            totalT[5] = newPos[1];
+
+
+            if (this._style && this._style.size === 'proportional') {
+                var scaleX = Math.sqrt(totalT[0] * totalT[0] + totalT[1] * totalT[1]);
+                var scaleY = Math.sqrt(totalT[3] * totalT[3] + totalT[4] * totalT[4]);
+
+                if (scaleX > scaleY) {
+                    var rescale = scaleY / scaleX;
+                    totalT[0] *= rescale;
+                    totalT[1] *= rescale;
+                    this._proportionalDim = 0;
+                    this._scale = scaleY;
+                } else {
+                    var rescale = scaleX / scaleY;
+                    totalT[3] *= rescale;
+                    totalT[4] *= rescale;
+                    this._proportionalDim = 1;
+                    this._scale = scaleX;
+                }
+            }
+
+            this._proportianalScale = rescale;
+
+            this._totalT = totalT;
+
+            return this._totalT;
+        });
+
+        pythia.element.extend('renderedPos', function (pos) {
+            var totalT = this.calcTransform();
+            return pythia.mMulV(totalT, pos);
+        });
+
+        function vmlCoord(n) {
+            return Math.round(n * zoom);
+        }
+
+        pythia.element.extend('updateTransform', function (cumulativeT) {
+            var totalT = this.calcTransform(cumulativeT),
+                i, len, path, vert;
+
+            if (this.hasClass('line') && this._vertices.length) {
+                vert = pythia.mMulV(totalT, this._vertices[0]);
+                path = ['M' + vmlCoord(vert[0]) + ' ' + vmlCoord(vert[1]) + 'L'];
+
+                for (i = 0, len = this._vertices.length; i < len; ++i) {
+                    vert = pythia.mMulV(this._totalT ,this._vertices[i]);
+                    path.push(vmlCoord(vert[0]));
+                    path.push(vmlCoord(vert[1]));
+                }
+
+                this.vml.path = path.join(' ');
+            } else if (this.hasClass('path')) {
+                path = [];
+
+                for (i = 0, len = this._path.length; i < len; ++i) {
+                    var pt = this._path[i];
+
+                    if (_.isArray(pt)) {
+                        vert = pythia.mMulV(totalT, pt);
+
+                        path.push(vmlCoord(vert[0]));
+                        path.push(vmlCoord(vert[1]));
+                    } else {
+                        path.push(pt);
+                    }
+                }
+
+                this.vml.path = path.join(' ');
+            } else if (this.hasClass('circleSlice') && this._pos) {
+                var scaleX = Math.sqrt(totalT[0] * totalT[0] + totalT[1] * totalT[1]),
+                    scaleY = Math.sqrt(totalT[3] * totalT[3] + totalT[4] * totalT[4]),
+                    isCircle = (1.99 * Math.PI) < this._angle;
+
+                var pos    = pythia.mMulV(totalT, [0,0]),
+                    radius = this._radius * (scaleX > scaleY ? scaleX : scaleY),
+                    pathL = [];
+
+                var vertCount = Math.floor(radius * this._angle / Math.PI);
+                vertCount = Math.max(vertCount, 15);
+                var vertices = arc(pos[0], pos[1], radius, this._startAngle, this._angle, vertCount);
+
+                for (i = 0, len = vertices.length; i < len; ++i) {
+                    var v = vertices[i];
+                    pathL.push(vmlCoord(v[0]));
+                    pathL.push(vmlCoord(v[1]));
+                }
+                if (isCircle) {
+                    pos = vertices[0];
+                }
+
+                pos[0] = vmlCoord(pos[0]);
+                pos[1] = vmlCoord(pos[1]);
+
+                var joinL = pathL.join(' ');
+                path = 'M' + pos.join(' ') + ' L' + joinL;
+
+                this.vml.path = path;
+            } else {
+                if (this.vml) {
+                    //this.vml.rotation = math.atan2(totalT[0], totalT[3]);
+                    if (this.vmlPath) {
+                        this.vmlPath.v = 'M2 2L' + (2 + totalT[0]) + ' ' + (2 + totalT[1]);
+                        this.vml.coordorigin = -vmlCoord(totalT[2]) + ' ' + -vmlCoord(totalT[5]);
+                    }
+                }
+            }
+
+            for (var key in this._children) {
+                var child = this._children[key];
+                if (!child._totalT || this.dirtyScale || this.dirtyPos) {
+                    child.dirtyScale = true;
+                    child.updateTransform();
+                }
+            }
+
+            return;
+            if (true) {
+                var m =  Raphael.matrix(
+                               totalT[0], totalT[1],  totalT[3]
+                             , totalT[4], totalT[2],  totalT[5]);
+
+                if (this._raph) {
+                    this._raph.transform(m.toTransformString());
+                }
+            }
+
+            if (this.hasClass('axis')) {
+                this.toBottom();
+            }
+
+            this.dirtyScale = false;
+
+            return this;
+        });
+
+        pythia.elements.path.extend('arc', function (pos, radius, startAngle, angle) {
+            var self = this;
+            var endAngle = startAngle + angle;
+            var p2 = Math.PI/2;
+
+            var a = 0;
+            while (a < angle) {
+                arc(startAngle, (angle - a) < p2 ? (angle - a) : p2);
+                a += Math.PI/2;
+                startAngle += Math.PI/2;
+            }
+
+            function arc(start, angle) {
+                var endPoint = [radius * Math.cos(startAngle + angle) + pos[0],
+                                radius * Math.sin(startAngle + angle) + pos[1]];
+                self._path.push('A', radius, radius, startAngle, 0, 1, endPoint);
+            }
+
+            return this;
+        });
+
+        pythia.elements.path.append('parent', function () {
+            if (this.vml && this._parent.vml) {
+                if (this._parent.vml.nextSibling) {
+                  this.vml.parentNode.insertBefore(this.vml, this._parent.vml.nextSibling);
+                } else {
+                  this.vml.parentNode.appendChild(this.vml);
+                }
+            }
+        });
+
+        pythia.elements.text.append('parent', function () {
+            if (this.vml && this._parent.vml) {
+                if (this._parent.vml.nextSibling) {
+                  this.vml.parentNode.insertBefore(this.vml, this._parent.vml.nextSibling);
+                } else {
+                  this.vml.parentNode.appendChild(this.vml);
+                }
+            }
+        });
+
+        this.updateTransform(false);
+    };
+
+    renderer.path = function(element) {
+        var vml   = element.vml,
+            fill  = element.vmlFill,
+            style = element._style,
+            color, strokeWidth;
+
+        if (!vml) {
+            vml  = element.vml = createNode('shape'),
+            vml.style.cssText = cssText;
+            vml.coordsize     = coordsize;
+            vml.setAttribute('pythia_id', element._id);
+            this.container.appendChild(vml);
+        }
+
+        if (element._path[0] === 'F') {
+            renderer.text(element);
+        }
+
+        if (style.zIndex) {
+            vml.style.zIndex = style.zIndex;
+        }
+
+        if (style.pointerEvents === 'none') {
+            vml.style.pointerEvents = 'none';
+        }
+
+        if (style.stroke !== false) {
+            vml.strokecolor  = pythia.color(style.strokeColor).html();
+            vml.strokeWeight = style.strokeWidth || 1;
+
+            if (style.strokeOpacity) {
+                vml.strokeOpacity = style.strokeOpacity;
+            }
+        } else {
+            vml.stroked = false;
+        }
+
+        if (style.fill !== false) {
+            if (!fill) {
+                fill = element.vmlFill = createNode('fill');
+                vml.appendChild(fill);
+            }
+
+            color        = style.color || style.fillColor || 0;
+            fill.color   = pythia.color(color).html();
+            if (style.fillOpacity !== undefined) {
+                fill.opacity = style.fillOpacity;
+            } else if (style.opacity !== undefined) {
+                fill.opacity = style.opacity;
+            }
+
+            vml.filled   = true;
+        } else {
+            vml.filled = false;
+        }
+    };
+
+    renderer.text = function (element) {
+        var vml    = element.vml,
+            path   = element.vmlPath,
+            skew   = element.vmlSkew,
+            style  = element._style,
+            text   = element.vmlText,
+            string = element._path[1],
+            dim;
+
+        if (!path) {
+            path = element.vmlPath = createNode("path");
+            path.textpathok = true;
+            text    = element.vmlText = createNode("textpath");
+            text.on = true;
+
+            if (style.textAlign) {
+                text.style['v-text-align'] = style.textAlign;
+            }
+
+            if (style.baseline === 'bottom') {
+                dim = pythia.measureText(string, style);
+                element.translate([0, -dim[1] / 2]);
+            }
+            if (style.baseline === 'top') {
+                dim = pythia.measureText(string, style);
+                element.translate([0, dim[1] / 2]);
+            }
+
+            if (style.fontSize) {
+                text.style.fontSize = style.fontSize;
+            }
+
+            if (style.fontFamily) {
+                text.style.fontFamily = style.fontFamily;
+            }
+
+            vml.appendChild(path);
+            vml.appendChild(text);
+        }
+
+        text.string = string;
+    };
+
+    function arc(cx, cy, r, startAngle, angle, steps) {
+        var theta           = angle / (steps - 1),
+            tangetialFactor = Math.tan(theta),
+            radialFactor    = Math.cos(theta),
+            x               = r * Math.cos(startAngle),
+            y               = r * Math.sin(startAngle),
+            vertices        = [],
+            tx,
+            ty,
+            i;
+
+        for(i = 0; i < steps; ++i) {
+            vertices.push([x + cx, y + cy]);
+
+            tx = -y;
+            ty = x;
+
+            x += tx * tangetialFactor;
+            y += ty * tangetialFactor;
+
+            x *= radialFactor;
+            y *= radialFactor;
+        }
+        return vertices;
+    }
+
+    var setStyle = function (el, name, value) {
+        if (el.style.setProperty) {
+            el.style.setProperty(name, value, '');
+        }
+        el.style[name] = value;
+    };
+
+    renderer.size = function(dim) {
+        this.__super.size.call(this, dim);
+    };
+
+
+    renderer.render = pythia.doNil;
+
+    pythia.renderer.vml = pythia.Class(pythia.renderer, renderer);
+
+    addEvent = function (element, type, fn) {
+      $(element).on(type, '.pythiavml', fn);
+    };
+
+    contains = function (context, node){
+        if (node) do {
+            if (node === context) return true;
+        } while ((node = node.parentNode));
+        return false;
+    };
+})(pythia, document, Math);
+  return pythia;
+});

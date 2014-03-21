@@ -193,6 +193,7 @@
         color:         0xcccccc,
         fontSize:      '14',
         position:      'fixed-horizontal',
+        fontFamily:    'Helvetica',
         yrelative:     'bottom',
         size:          'fixed',
         stroke:        false,
@@ -204,6 +205,7 @@
         color:         0xcccccc,
         fontSize:      '14',
         position:      'fixed-vertical',
+        fontFamily:    'Helvetica',
         size:          'fixed',
         stroke:        false,
         pointerEvents: 'none',
@@ -234,6 +236,7 @@
 
     style['tooltip text'] = {
         color:         0xF9F9F9,
+        fontFamily:    'proxima-nova',
         fontSize:      '12',
         opacity:       1,
         pointerEvents: 'none',

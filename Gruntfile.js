@@ -2,7 +2,7 @@ module.exports = function(grunt) {
   "use strict";
 
   var sourceFiles = [
-    'vendor/raphael.js', 'vendor/underscore.js',
+    'vendor/raphael.js',
 
     'src/pythia.js',
     'src/pythia.class.js',
@@ -34,6 +34,8 @@ module.exports = function(grunt) {
 
     concat: {
       options: {
+        banner: "define(function (require) {\n  var _ = require('lodash');",
+        footer: '  return pythia;\n});',
         separator: ';'
       },
       dist: {
