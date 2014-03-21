@@ -1,7 +1,7 @@
 {
   "name": "pythia",
   "main": "dist/pythia.js",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "homepage": "https://github.com/OpenGov/pythia",
   "description": "A charting library",
   "private": true,
