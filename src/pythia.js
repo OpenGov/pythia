@@ -1,6 +1,3 @@
-(function(window) {
-    "use strict";
-
     // The global pythia function and object. Entry point to all things pythia.
     // Returns a canvas to render stuff onto
     var pythia = window.pythia = function (d, options) {
@@ -349,4 +346,3 @@
     };
 
     pythia.elements = {};
-})(this);

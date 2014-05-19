@@ -1,12 +1,12 @@
 {
   "name": "pythia",
   "main": "dist/pythia.js",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "homepage": "https://github.com/OpenGov/pythia",
   "description": "A charting library",
   "private": true,
   "dependencies": {
-    "lodash": "git@github.com:OpenGov/lodash.git#2.4.1-no-object-length-support-unless-jquery"
+    "lodash": "~2.4.1"
   },
   "ignore": [
     "src",

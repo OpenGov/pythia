@@ -7,6 +7,7 @@
   "expr": 1,
   "es3": 1,
   "undef": true,
+  "node": true,
   "maxcomplexity": 8,
   "globals": {
     "setTimeout": false,

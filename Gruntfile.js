@@ -34,8 +34,8 @@ module.exports = function(grunt) {
 
     concat: {
       options: {
-        banner: "define(function (require) {\n  var _ = require('lodash');",
-        footer: '  return pythia;\n});',
+        banner: "var _ = require('lodash'); var $ = require('jquery');",
+        footer: 'module.exports = pythia;',
         separator: ';'
       },
       dist: {

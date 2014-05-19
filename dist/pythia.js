@@ -1,5 +1,4 @@
-define(function (require) {
-  var _ = require('lodash');// ┌────────────────────────────────────────────────────────────────────┐ \\
+var _ = require('lodash'); var $ = require('jquery');// ┌────────────────────────────────────────────────────────────────────┐ \\
 // │ Raphaël 2.1.0 - JavaScript Vector Library                          │ \\
 // ├────────────────────────────────────────────────────────────────────┤ \\
 // │ Copyright © 2008-2012 Dmitry Baranovskiy (http://raphaeljs.com)    │ \\
@@ -5796,10 +5795,7 @@ window.Raphael && window.Raphael.vml && function (R) {
         })(method);
     }
 }(window.Raphael);
-;(function(window) {
-    "use strict";
-
-    // The global pythia function and object. Entry point to all things pythia.
+;    // The global pythia function and object. Entry point to all things pythia.
     // Returns a canvas to render stuff onto
     var pythia = window.pythia = function (d, options) {
         if (_.isElement(d)) {
@@ -6147,7 +6143,6 @@ window.Raphael && window.Raphael.vml && function (R) {
     };
 
     pythia.elements = {};
-})(this);
 ;(function(pythia) {
     "use strict";
 
@@ -9566,5 +9561,4 @@ pythia.axisScale = function (longest, shortest, stepCount) {
         return false;
     };
 })(pythia, document, Math);
-  return pythia;
-});
+module.exports = pythia;
