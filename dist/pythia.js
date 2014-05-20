@@ -8606,6 +8606,9 @@ pythia.axisScale = function (longest, shortest, stepCount) {
         var r = this;
         this._paper = Raphael(container).setSize(10,10);
 
+        if (pythia.element.__pythia.refresh.pythiaChain) {
+          pythia.element.__pythia.refresh.pythiaChain.pop();
+        }
         pythia.element.append('refresh', function () {
             var self = this;
 
@@ -8637,12 +8640,12 @@ pythia.axisScale = function (longest, shortest, stepCount) {
             return this;
         });
 
-        pythia.element.append('center', function () {
+        pythia.element.extend('center', function () {
             var box = this._raph.getBBox(true);
             return [box.x + box.width/2, box.y + box.height/2];
         });
 
-        pythia.element.append('bounds', function () {
+        pythia.element.extend('bounds', function () {
             var box = this._raph.getBBox(true);
             return {min: [box.x, box.y], max:[box.x2, box.y2]};
         });
@@ -8909,6 +8912,9 @@ pythia.axisScale = function (longest, shortest, stepCount) {
             return this;
         });
 
+        if (pythia.elements.path.__pythia.parent.pythiaChain) {
+          pythia.elements.path.__pythia.parent.pythiaChain.pop();
+        }
         pythia.elements.path.append('parent', function () {
             if (this._parent._raph && this._raph && this._parent._raph.node) {
                 if (this._parent._raph.node.nextSibling) {
@@ -8920,6 +8926,9 @@ pythia.axisScale = function (longest, shortest, stepCount) {
             }
         });
 
+        if (pythia.elements.text.__pythia.parent.pythiaChain) {
+          pythia.elements.text.__pythia.parent.pythiaChain.pop();
+        }
         pythia.elements.text.append('parent', function () {
             if (this._parent._raph && this._raph && this._parent._raph.node) {
                 if (this._parent._raph.node.nextSibling) {
