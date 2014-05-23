@@ -71,6 +71,9 @@
             }
         });
 
+        if (pythia.element.__pythia.refresh.pythiaChain) {
+          pythia.element.__pythia.refresh.pythiaChain.pop();
+        }
         pythia.element.append('refresh', function () {
             if (this._path) {
                 renderer.path(this);
@@ -78,11 +81,11 @@
             return this;
         });
 
-        pythia.element.append('center', function () {
+        pythia.element.extend('center', function () {
             return [10,10];
         });
 
-        pythia.element.append('bounds', function () {
+        pythia.element.extend('bounds', function () {
             return {min: [10,10], max:[20,20]};
         });
 
@@ -328,6 +331,9 @@
             return this;
         });
 
+        if (pythia.elements.path.__pythia.parent.pythiaChain) {
+          pythia.elements.path.__pythia.parent.pythiaChain.pop();
+        }
         pythia.elements.path.append('parent', function () {
             if (this.vml && this._parent.vml) {
                 if (this._parent.vml.nextSibling) {
@@ -338,6 +344,9 @@
             }
         });
 
+        if (pythia.elements.text.__pythia.parent.pythiaChain) {
+          pythia.elements.text.__pythia.parent.pythiaChain.pop();
+        }
         pythia.elements.text.append('parent', function () {
             if (this.vml && this._parent.vml) {
                 if (this._parent.vml.nextSibling) {
