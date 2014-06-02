@@ -8,7 +8,7 @@ var Element = require('../src/element');
 var Chart = require('../src/chart');
 var Line = require('../src/element.line');
 var Path = require('../src/element.path');
-var CircleSlice = require('../src/element.circleslice');
+var CircleSlice = require('../src/element.circleSlice');
 
 module.exports = Class(Chart, {
   classNames: ['chart', 'line'],
