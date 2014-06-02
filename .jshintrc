@@ -1,6 +1,7 @@
 {
   "strict": 1,
   "laxcomma": 1,
+  "newcap": false,
   "laxbreak": 1,
   "curly": 1,
   "indent": 2,

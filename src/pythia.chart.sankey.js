@@ -1,5 +1,9 @@
+"use strict";
+
+var Class = require('../src/class');
+
 (function(p) {
-    p.chart.sankey = p.Class(p.chart, {
+    p.chart.sankey = Class(p.chart, {
         refresh: function() {
             var self       = this
               //filled in during calcDepth
