@@ -26,6 +26,7 @@ module.exports = Class(Path, {
           .close()
           .translate(pos);
     }).apply(this, this._args);
+    return this;
   },
 
   center: function () {

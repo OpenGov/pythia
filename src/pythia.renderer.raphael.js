@@ -1,5 +1,7 @@
 "use strict";
 
+var _ = require('lodash');
+
 var Class = require('../src/class');
 var Color = require('../src/color');
 var Element = require('../src/element');
@@ -26,8 +28,9 @@ r.init = function (container, element) {
       var self = this;
 
       var old = this._raph;
-      if (this._path)
-          this._raph = r.path(this._path, this._style, this._raph);
+      if (this._path) {
+        this._raph = r.path(this._path, this._style, this._raph);
+      }
 
       this._mousedOver = false;
 

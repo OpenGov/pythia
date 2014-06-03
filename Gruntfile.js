@@ -2,11 +2,7 @@ module.exports = function(grunt) {
   "use strict";
 
   var sourceFiles = [
-    'src/pythia.js',
-
-    'src/pythia.renderer.js',
-    'src/pythia.renderer.raphael.js',
-    'src/pythia.renderer.vml.js'
+    'src/pythia.js'
   ];
 
   grunt.initConfig({

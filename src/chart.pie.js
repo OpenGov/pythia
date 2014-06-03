@@ -8,17 +8,13 @@ var Chart = require('../src/chart');
 var CircleSlice = require('../src/element.circleSlice');
 
 module.exports = Class(Chart, {
-  init: function () {
-    var self        = this;
-    this.radius     = self._opts.radius  || 48;
-    this.x          = self._opts.x       || 50;
-    this.y          = self._opts.y       || 50;
-
-    this.refresh();
-  },
+  name: 'pieChart',
 
   defaultOptions: [
-    ['multiline', false]
+    ['multiline', false],
+    ['x', 50],
+    ['y', 50],
+    ['radius', 48]
   ],
 
   refresh: function() {
@@ -32,9 +28,10 @@ module.exports = Class(Chart, {
 
     this.flipCache();
 
-    var self  = this,
-        total = _.reduce(self._data._data, function (sum, el) { return sum + self.dataValue(el); }, 0);
+    var self  = this;
+    var total = _.reduce(self._data._data, function (sum, el) { return sum + self.dataValue(el); }, 0);
     var count = 0;
+    var opts = this._opts;
 
     self.pos = self.pos || 0;
 
@@ -88,8 +85,8 @@ module.exports = Class(Chart, {
 
         if (!slice) {
           slice = self.add(CircleSlice(
-            [self.x, self.y],
-            self.radius,
+            [opts.x, opts.y],
+            opts.radius,
             startAngle,
             0,
             pythia.Style(self.style, {
@@ -113,8 +110,8 @@ module.exports = Class(Chart, {
           }
 
         } else {
-          slice._pos    = [self.x, self.y];
-          slice._radius = self.radius;
+          slice._pos    = [opts.x, opts.y];
+          slice._radius = opts.radius;
           slice.data(el, self._data._data[lineKey], lineNo, self._data._data[lineKey].id);
 
           // Don't flip styles on 0

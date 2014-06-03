@@ -1,8 +1,10 @@
 "use strict";
 
+var _ = require('lodash');
+
 // The global pythia function and object. Entry point to all things pythia.
 // Returns a canvas to render stuff onto
-var pythia = window.pythia = function (d, options) {
+var pythia = module.exports = window.pythia = function (d, options) {
   if (_.isElement(d)) {
     return pythia.canvas(d, options);
   } else if (d) {
@@ -332,7 +334,7 @@ pythia.util = require('../src/util');
 require('../src/element.js');
 require('../src/chart');
 
-pythia.element = {}
+pythia.element = {};
 pythia.element.canvas = require('../src/element.canvas');
 pythia.element.text = require('../src/element.text');
 pythia.element.axis = require('../src/axis');
@@ -343,8 +345,12 @@ pythia.element.line = require('../src/element.line');
 pythia.element.circleSlice = require('../src/element.circleSlice');
 
 
-pythia.chart = {}
+pythia.chart = {};
 pythia.chart.bar = require('../src/chart.bar');
 pythia.chart.line = require('../src/chart.line');
 pythia.chart.pie = require('../src/chart.pie');
 
+pythia.renderer = require('../src/renderer');
+// TODO
+require('../src/pythia.renderer.raphael');
+require('../src/pythia.renderer.vml');

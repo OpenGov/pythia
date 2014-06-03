@@ -80,7 +80,6 @@ r.refresh = function () {
   }
 };
 
-pythia.renderer = Class(r);
 
 r.defaultWindow = function(win) {
   this.win = win;
@@ -216,3 +215,5 @@ r.Window = Class({
     return this;
   }
 });
+
+module.exports = Class(r);

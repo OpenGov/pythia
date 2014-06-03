@@ -95,10 +95,6 @@ module.exports = Class(Chart, {
 
       this.step = (100 - shortest) / this.stepCount;
     } else {
-      if (shortest < 0 && this.hasPositiveData()) {
-        negativeDrag = 2;
-      }
-
       var longShort = pythia.axisScale(longest, shortest * negativeDrag, 5);
 
       longest        = longShort[0];
@@ -119,7 +115,18 @@ module.exports = Class(Chart, {
     }
     this.longest = highest;
 
+    var yOffset    = shortest < 0 ? -1 * shortest : 0, // Account for negative space below the x axis
+        yTransform = 100/(longest + yOffset);          // Multiply y values into height in the renderer
 
+    if (yTransform === Infinity) {
+      yTransform = 0;
+    }
+
+    var zeroHeight = yOffset * yTransform;             // Height of the zero x axis
+
+
+    var scale = 100/(100 + zeroHeight + zeroHeight); 
+              console.log(scale);
     if (opts.multiline) {
       _.each(data.reverse(), addLine);
     } else { //not multiline
@@ -130,8 +137,9 @@ module.exports = Class(Chart, {
       var i = 0;
       _.each(self.dataLine(line), function(element, key) {
         var value = self.dataValue(element, key, lineNo);
-        var height = value / highest * 100;
-        var x, y = 100 - height;
+        var height = value * yTransform;
+        //var height = (value + yOffset) * yTransform;
+        var x, y = 100 - zeroHeight - height;
 
         if (opts.stacked) {
           if (lineNo) {
@@ -158,26 +166,56 @@ module.exports = Class(Chart, {
           strokeWidth: 0,
           strokeColor: color
         };
+        if (value < 0) {
+          console.log('negative');
+          style.fillOpacity = 0.01;
+        }
 
         var bar;
         var cacheId = [self.dataLineId(line), key];
 
-        bar =
-          Rect([x,y], [xWidth, height], style)
-              .addClass('bar')
-              .data(value, line, key, line.id);
-        self.add(bar);
+        bar = self.cache(cacheId, 'bar');
+        if (!bar) {
+          var initialY = lineNo ? y + height : y;
+          bar =
+            Rect([x,initialY], [xWidth, 1], style)
+                .addClass('bar')
+                .data(value, line, key, line.id);
+          self.add(bar);
+        }
         bar._style = style;
-        self.cache([self.dataLineId(line)], 'bar', []);
+        //self.cache([self.dataLineId(line)], 'bar', []);
 
         self.cache(cacheId, 'bar', bar);
 
         bar.toBottom().refresh();
         ++i;
+
+        self.animate(self.barAnimation(bar, x, y, xWidth, height), 400);
       });
     }
 
     this.flushCache();
 //    this._r.unPause();
+  },
+
+  barAnimation: function (bar, x, y, width, height) {
+    var initialX = bar._pos[0];
+    var initialY = bar._pos[1];
+    var initialWidth = bar._dim[0];
+    var initialHeight = bar._dim[1];
+
+    return function (scale) {
+      var currentX = initialX + (x - initialX) * scale;
+      var currentY = initialY + (y - initialY) * scale;
+      var currentWidth = initialWidth + (width - initialWidth) * scale;
+      var currentHeight = initialHeight + (height - initialHeight) * scale;
+      bar._pos[0] = currentX;
+      bar._pos[1] = currentY;
+      bar._dim[0] = currentWidth;
+      bar._dim[1] = currentHeight;
+      bar.repath();
+      bar.updateTransform();
+    };
   }
 });

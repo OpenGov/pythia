@@ -152,190 +152,192 @@ module.exports = Class(Chart, {
     }
 
     function addLine(line, lineNumber) {
-        var vertices     = [],
-            oldHeight    = [],
-            i            = 0,
-            line_i       = 0,
-            points       = [],
-            current_type = '',
-            dline        = self.dataLine(line),
-            dLineId      = self.dataLineId(line);
+      var vertices     = [],
+          oldHeight    = [],
+          i            = 0,
+          line_i       = 0,
+          points       = [],
+          current_type = '',
+          dline        = self.dataLine(line),
+          dLineId      = self.dataLineId(line);
 
-        var cached = self.cache(dLineId, 'line'),
-            lineElements = cached || [],
-            color = lineColor(line, lineNumber),
-            colorStyle = {strokeColor: color, lineColor: color, color: color};
+      var cached = self.cache(dLineId, 'line'),
+          lineElements = cached || [],
+          color = lineColor(line, lineNumber),
+          colorStyle = {strokeColor: color, lineColor: color, color: color};
 
 
-        for(var key in dline) { if (dline.hasOwnProperty(key)) {
-            var element = dline[key];
-            var value, height, offsetHeight;
+      for(var key in dline) {
+        if (dline.hasOwnProperty(key)) {
+          var element = dline[key];
+          var value, height, offsetHeight;
 
-            if (percent) {
-              if (totals[key]) {
-                value = self.dataValue(element, key, lineNumber)/totals[key] * 100;
-              } else {
-                value = 100 / counts[key];
-              }
+          if (percent) {
+            if (totals[key]) {
+              value = self.dataValue(element, key, lineNumber)/totals[key] * 100;
             } else {
-                value = self.dataValue(element, key, lineNumber);
+              value = 100 / counts[key];
             }
-            oldHeight[i] = cumulativeHeight[i] = cumulativeHeight[i] || (zeroHeight + ((negativeDrag * shortList[i]) * yTransform));
+          } else {
+            value = self.dataValue(element, key, lineNumber);
+          }
+          oldHeight[i] = cumulativeHeight[i] = cumulativeHeight[i] || (zeroHeight + ((negativeDrag * shortList[i]) * yTransform));
 
-            if (stacked) {
-                height = value * yTransform;
+          if (stacked) {
+            height = value * yTransform;
+          } else {
+            height = (value + yOffset) * yTransform;
+          }
+
+          cumulativeValue[i] = cumulativeValue[i] || 0;
+
+          if (stacked) {
+            if (value < 0) {
+              offsetHeight = oldHeight[i];
+              cumulativeHeight[i] = oldHeight[i] -= height;
             } else {
-                height = (value + yOffset) * yTransform;
+              offsetHeight = cumulativeHeight[i] = oldHeight[i] + height;
             }
+          } else {
+            cumulativeHeight[i] += height;
+            offsetHeight = height;
+          }
 
-            cumulativeValue[i] = cumulativeValue[i] || 0;
+          cumulativeValue[i] += value;
 
-            if (stacked) {
-                if (value < 0) {
-                    offsetHeight = oldHeight[i];
-                    cumulativeHeight[i] = oldHeight[i] -= height;
-                } else {
-                    offsetHeight = cumulativeHeight[i] = oldHeight[i] + height;
-                }
+          var y = 100 - offsetHeight;
+          if (y < 0.001 && y > -0.001) {
+            y = 0;
+          }
+
+          var vertex;
+          if (dSize > 1) {
+            vertex = [stepSize * i, y];
+            vertices.push(vertex);
+            points.push([element, key, vertex, value]);
+          } else {
+            vertex = [50, y];
+            points.push([element, key, vertex, value]);
+            vertices = [[0,y], vertex, [100,y]];
+            vertices[0].type = line.types[key];
+            vertices[2].type = line.types[key];
+          }
+          vertex.type = line.types[key];
+          ++i;
+
+          if (vertex.type !== current_type) {
+            var el    = lineElements[line_i] = self.cache([dLineId, line_i], 'lineSegment'),
+                style = Style(colorStyle, self.elementTypeStyle('line', vertex.type));
+
+            if (!el) {
+              el = self.add(Line([vertices[0]], style));
+              el.addClass('lineSegment');
+              el.data(line, line, line.id, line.id);
             } else {
-                cumulativeHeight[i] += height;
-                offsetHeight = height;
+              lineElements[line_i].setStyles(style);
+              lineElements[line_i].refresh();
             }
 
-            cumulativeValue[i] += value;
+            lineElements[line_i] = el;
+            current_type = el.type = vertex.type;
+            self.cache([dLineId, line_i], 'lineSegment', el);
 
-            var y = 100 - offsetHeight;
-            if (y < 0.001 && y > -0.001) {
-                y = 0;
-            }
-
-            var vertex;
-            if (dSize > 1) {
-              vertex = [stepSize * i, y];
-              vertices.push(vertex);
-              points.push([element, key, vertex, value]);
-            } else {
-              vertex = [50, y];
-              points.push([element, key, vertex, value]);
-              vertices = [[0,y], vertex, [100,y]];
-              vertices[0].type = line.types[key];
-              vertices[2].type = line.types[key];
-            }
-            vertex.type = line.types[key];
-            ++i;
-
-            if (vertex.type !== current_type) {
-                var el    = lineElements[line_i] = self.cache([dLineId, line_i], 'lineSegment'),
-                    style = Style(colorStyle, self.elementTypeStyle('line', vertex.type));
-
-                if (!el) {
-                    el = self.add(Line([vertices[0]], style));
-                    el.addClass('lineSegment');
-                    el.data(line, line, line.id, line.id);
-                } else {
-                    lineElements[line_i].setStyles(style);
-                    lineElements[line_i].refresh();
-                }
-
-                lineElements[line_i] = el;
-                current_type = el.type = vertex.type;
-                self.cache([dLineId, line_i], 'lineSegment', el);
-
-                line_i++;
-            }
-        }}
-
-        lines.push(lineElements);
-        self.cache(self.dataLineId(line), 'line', []);
-
-        var pointElements = [];
-
-        for(var l = 0; l < points.length; ++l) {
-            var pdata = points[l];
-            var point = self.cache([self.dataLineId(line), l], 'point');
-
-
-            if (!point) {
-                point = self.add(CircleSlice(
-                    pdata[2],
-                    4,
-                    0,
-                    Math.PI * 2.1,
-                    Style(colorStyle, self.elementTypeStyle('vertex', 'default'))
-                )).addClass('point');
-
-                point._style.pointerEvents = 'always';
-            }
-            point.parent(lineElements[0]);
-
-            point.data(pdata[0], line, pdata[1], line.id);
-            point._total = cumulativeValue[l];
-            point.value = pdata[3];
-
-
-            pointElements.push(point);
-            self.cache([self.dataLineId(line), l], 'point', point);
+            line_i++;
+          }
         }
+      }
 
-        var path;
+      lines.push(lineElements);
+      self.cache(self.dataLineId(line), 'line', []);
 
-        if (fill) {
-            path = self.cache([dLineId], 'fill') || [];
+      var pointElements = [];
 
-            for (i = 0; i < lineElements.length; ++i) {
-              path[i] = self.cache([dLineId, i], 'fillSegment');
+      for(var l = 0; l < points.length; ++l) {
+          var pdata = points[l];
+          var point = self.cache([self.dataLineId(line), l], 'point');
 
-              if (!path[i]) {
-                path[i] = self.add(Path())
-                              .move(vertices[0])
-                              .addClass('fill')
-                              .toBottom();
-                path[i]._vertices = vertices;
 
-                path[i].oldBottom = oldHeight;
-                path[i]._vertices = vertices;
-              } else {
-                path[i].wasFill = true;
-                path.oldBottom = path[i].oldBottom;
-              }
+          if (!point) {
+              point = self.add(CircleSlice(
+                  pdata[2],
+                  4,
+                  0,
+                  Math.PI * 2.1,
+                  Style(colorStyle, self.elementTypeStyle('vertex', 'default'))
+              )).addClass('point');
 
-              path[i]._style = Style(colorStyle, self.elementTypeStyle('fill', lineElements[i].type));
-              path[i].refresh();
+              point._style.pointerEvents = 'always';
+          }
+          point.parent(lineElements[0]);
 
-              self.cache([dLineId, i], 'fillSegment', path[i]);
+          point.data(pdata[0], line, pdata[1], line.id);
+          point._total = cumulativeValue[l];
+          point.value = pdata[3];
+
+
+          pointElements.push(point);
+          self.cache([self.dataLineId(line), l], 'point', point);
+      }
+
+      var path;
+
+      if (fill) {
+          path = self.cache([dLineId], 'fill') || [];
+
+          for (i = 0; i < lineElements.length; ++i) {
+            path[i] = self.cache([dLineId, i], 'fillSegment');
+
+            if (!path[i]) {
+              path[i] = self.add(Path())
+                            .move(vertices[0])
+                            .addClass('fill')
+                            .toBottom();
+              path[i]._vertices = vertices;
+
+              path[i].oldBottom = oldHeight;
+              path[i]._vertices = vertices;
+            } else {
+              path[i].wasFill = true;
+              path.oldBottom = path[i].oldBottom;
             }
 
-            for (i = 0; i < path.length; ++i) {
-              path[i].data(line, line, line.id, line.id);
-            }
-            self.cache([self.dataLineId(line)], 'fill', []);
-        }
+            path[i]._style = Style(colorStyle, self.elementTypeStyle('fill', lineElements[i].type));
+            path[i].refresh();
 
-        if (cached) {
-            self.animate(
-                self.doTranslate(
-                    lineElements,
-                    pointElements,
-                    vertices,
-                    path,
-                    oldHeight,
-                    fill && path[0].oldBottom && path[0].oldBottom.slice(0)
-                ),
-                400
-            );
-        } else {
-            self.animate(
-                self.doEnter(
-                    lineElements,
-                    pointElements,
-                    vertices,
-                    path,
-                    oldHeight
-                ),
-                400
-            );
-        }
-        lastLine = lineElements;
+            self.cache([dLineId, i], 'fillSegment', path[i]);
+          }
+
+          for (i = 0; i < path.length; ++i) {
+            path[i].data(line, line, line.id, line.id);
+          }
+          self.cache([self.dataLineId(line)], 'fill', []);
+      }
+
+      if (cached) {
+          self.animate(
+              self.doTranslate(
+                  lineElements,
+                  pointElements,
+                  vertices,
+                  path,
+                  oldHeight,
+                  fill && path[0].oldBottom && path[0].oldBottom.slice(0)
+              ),
+              400
+          );
+      } else {
+          self.animate(
+              self.doEnter(
+                  lineElements,
+                  pointElements,
+                  vertices,
+                  path,
+                  oldHeight
+              ),
+              400
+          );
+      }
+      lastLine = lineElements;
     }
 
     this.flushCache();

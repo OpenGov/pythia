@@ -1,8 +1,14 @@
 "use strict";
 
+var $ = require('jquery');
+var _ = require('lodash');
+
 var Class = require('../src/class');
-var color = require('../src/color');
+var Color = require('../src/color');
 var util = require('../src/util');
+var Element = require('../src/element');
+var Path = require('../src/element.path');
+var Text = require('../src/element.text');
 
 var renderer  = {},
     addEvent,
@@ -36,7 +42,7 @@ renderer.init = function (container, element) {
         id    = domEl.getAttribute('pythia_id');
 
     if (id) {
-      element = pythia.getElement(id);
+      element = Element.getElement(id);
       if (element) {
         element.invoke('click');
       }
@@ -50,7 +56,7 @@ renderer.init = function (container, element) {
 
     if (!from || (from !==  domEl && !contains(domEl, from))) {
       if (id) {
-        element = pythia.getElement(id);
+        element = Element.getElement(id);
         if (element) {
           if (!element._style || element._style.pointerEvents !== 'none') {
             element.invoke('mouseover');
@@ -61,48 +67,48 @@ renderer.init = function (container, element) {
   });
 
   addEvent(container, 'mouseleave', function (evt) {
-      var domEl = evt.target || evt.srcElement,
-          id    = domEl.getAttribute('pythia_id');
+    var domEl = evt.target || evt.srcElement,
+        id    = domEl.getAttribute('pythia_id');
 
-      if (id) {
-          element = pythia.getElement(id);
-          if (element) {
-              if (!element._style || element._style.pointerEvents !== 'none') {
-                element.invoke('mouseout');
-              }
-          }
+    if (id) {
+      element = Element.getElement(id);
+      if (element) {
+        if (!element._style || element._style.pointerEvents !== 'none') {
+          element.invoke('mouseout');
+        }
       }
+    }
   });
 
-  if (pythia.element.__pythia.refresh.pythiaChain) {
-    pythia.element.__pythia.refresh.pythiaChain.pop();
+  if (Element.__pythia.refresh.pythiaChain) {
+    Element.__pythia.refresh.pythiaChain.pop();
   }
-  pythia.element.append('refresh', function () {
-      if (this._path) {
-          renderer.path(this);
-      }
-      return this;
+  Element.append('refresh', function () {
+    if (this._path) {
+      renderer.path(this);
+    }
+    return this;
   });
 
-  pythia.element.extend('center', function () {
-      return [10,10];
+  Element.extend('center', function () {
+    return [10,10];
   });
 
-  pythia.element.extend('bounds', function () {
-      return {min: [10,10], max:[20,20]};
+  Element.extend('bounds', function () {
+    return {min: [10,10], max:[20,20]};
   });
 
   function elementToTop(e) {
-      e.toTop();
+    e.toTop();
   }
   function elementToBottom(e) {
-      e.toBottom();
+    e.toBottom();
   }
 
-  pythia.element.extend('toTop', function () {
+  Element.extend('toTop', function () {
   });
 
-  pythia.element.extend('toBottom', function () {
+  Element.extend('toBottom', function () {
       var parnt;
 
       if (this.vml) {
@@ -112,7 +118,7 @@ renderer.init = function (container, element) {
       return this;
   });
 
-  pythia.element.extend('calcTransform', function (cumulativeT) {
+  Element.extend('calcTransform', function (cumulativeT) {
       // Fix for bug sometimes on pie (esp. large initial views)
       // neither cumulativeT nor _parent._totalT will be initialized
       // so default to identity matrix
@@ -205,7 +211,7 @@ renderer.init = function (container, element) {
       return this._totalT;
   });
 
-  pythia.element.extend('renderedPos', function (pos) {
+  Element.extend('renderedPos', function (pos) {
       var totalT = this.calcTransform();
       return util.mMulV(totalT, pos);
   });
@@ -214,7 +220,7 @@ renderer.init = function (container, element) {
       return Math.round(n * zoom);
   }
 
-  pythia.element.extend('updateTransform', function (cumulativeT) {
+  Element.extend('updateTransform', function (cumulativeT) {
       var totalT = this.calcTransform(cumulativeT),
           i, len, path, vert;
 
@@ -229,7 +235,7 @@ renderer.init = function (container, element) {
           }
 
           this.vml.path = path.join(' ');
-      } else if (this.hasClass('path')) {
+      } else if (this.hasClass('path') || this.hasClass('rect')) {
           path = [];
 
           for (i = 0, len = this._path.length; i < len; ++i) {
@@ -313,7 +319,7 @@ renderer.init = function (container, element) {
       return this;
   });
 
-  pythia.elements.path.extend('arc', function (pos, radius, startAngle, angle) {
+  Path.extend('arc', function (pos, radius, startAngle, angle) {
       var self = this;
       var endAngle = startAngle + angle;
       var p2 = Math.PI/2;
@@ -334,10 +340,10 @@ renderer.init = function (container, element) {
       return this;
   });
 
-  if (pythia.elements.path.__pythia.parent.pythiaChain) {
-    pythia.elements.path.__pythia.parent.pythiaChain.pop();
+  if (Path.__pythia.parent.pythiaChain) {
+    Path.__pythia.parent.pythiaChain.pop();
   }
-  pythia.elements.path.append('parent', function () {
+  Path.append('parent', function () {
       if (this.vml && this._parent.vml) {
           if (this._parent.vml.nextSibling) {
             this.vml.parentNode.insertBefore(this.vml, this._parent.vml.nextSibling);
@@ -347,10 +353,10 @@ renderer.init = function (container, element) {
       }
   });
 
-  if (pythia.elements.text.__pythia.parent.pythiaChain) {
-    pythia.elements.text.__pythia.parent.pythiaChain.pop();
+  if (Text.__pythia.parent.pythiaChain) {
+    Text.__pythia.parent.pythiaChain.pop();
   }
-  pythia.elements.text.append('parent', function () {
+  Text.append('parent', function () {
       if (this.vml && this._parent.vml) {
           if (this._parent.vml.nextSibling) {
             this.vml.parentNode.insertBefore(this.vml, this._parent.vml.nextSibling);
@@ -390,7 +396,7 @@ renderer.path = function(element) {
     }
 
     if (style.stroke !== false) {
-        vml.strokecolor  = color(style.strokeColor).html();
+        vml.strokecolor  = Color(style.strokeColor).html();
         vml.strokeWeight = style.strokeWidth || 1;
 
         if (style.strokeOpacity) {
@@ -407,7 +413,7 @@ renderer.path = function(element) {
         }
 
         color        = style.color || style.fillColor || 0;
-        fill.color   = color(color).html();
+        fill.color   = Color(color).html();
         if (style.fillOpacity !== undefined) {
             fill.opacity = style.fillOpacity;
         } else if (style.opacity !== undefined) {

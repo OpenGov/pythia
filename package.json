@@ -2,7 +2,7 @@
   "name": "pythia",
   "version": "0.1.1",
   "description": "A charting library",
-  "main": "dist/pythia",
+  "main": "src/pythia",
   "directories": {
     "example": "example"
   },
