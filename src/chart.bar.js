@@ -125,8 +125,6 @@ module.exports = Class(Chart, {
     var zeroHeight = yOffset * yTransform;             // Height of the zero x axis
 
 
-    var scale = 100/(100 + zeroHeight + zeroHeight); 
-              console.log(scale);
     if (opts.multiline) {
       _.each(data.reverse(), addLine);
     } else { //not multiline
@@ -167,7 +165,6 @@ module.exports = Class(Chart, {
           strokeColor: color
         };
         if (value < 0) {
-          console.log('negative');
           style.fillOpacity = 0.01;
         }
 
