@@ -4,6 +4,15 @@ var _ = require('lodash');
 
 var append, prepend, extend, on, trigger;
 
+// Used to create objects
+function Pythia() {}
+
+// Create a basic object with prototype <proto>
+pythia.Object = function (proto) {
+    Pythia.prototype = proto;
+    return new Pythia();
+};
+
 // Return an object constructor function
 //
 // Class(<base>);
@@ -16,12 +25,12 @@ module.exports = function (base, properties) {
 
   base = base.__pythia || base; // If base is one of our classes its
                                 // prototype will be in __pythia
-  var proto = Object.create(base);
+  var proto = pythia.Object(base);
   proto.__super = base;
 
   // The class constructor function
   var ctor = function () {
-    var o = Object.create(proto);
+    var o = pythia.Object(proto);
 
     if (typeof proto.init === 'function') {
       proto.init.apply(o, arguments);

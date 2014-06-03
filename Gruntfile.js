@@ -1,32 +1,25 @@
 module.exports = function(grunt) {
   "use strict";
 
-  var sourceFiles = [
-    'src/pythia.js'
-  ];
-
   grunt.initConfig({
-    pkg: grunt.file.readJSON('package.json'),
-
-    concat: {
+    browserify: {
       options: {
-        banner: "var _ = require('lodash'); var $ = require('jquery');",
-        footer: 'module.exports = pythia;',
-        separator: ';'
+        watch: true,
+        bundleOptions: {
+          debug: true,
+          standalone: 'pythia'
+        }
       },
       dist: {
-        src: sourceFiles,
-        dest: 'dist/<%= pkg.name %>.js'
+        src: 'src/pythia.js',
+        dest: 'dist/pythia.js'
       }
-    },
-    watch: {
-      src: sourceFiles,
-      tasks: ['concat']
     }
   });
 
-  grunt.loadNpmTasks('grunt-contrib-watch');
-  grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('grunt-browserify');
 
-  grunt.registerTask('default', ['concat']);
+
+  grunt.registerTask('dist', ['browserify:dist']);
+  grunt.registerTask('default', ['dist']);
 };
