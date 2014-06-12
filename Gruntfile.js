@@ -6,7 +6,6 @@ module.exports = function(grunt) {
       options: {
         watch: true,
         bundleOptions: {
-          debug: true,
           standalone: 'pythia'
         }
       },
