@@ -1,0 +1,21 @@
+{
+  "name": "pythia",
+  "main": "dist/pythia.js",
+  "version": "0.2.2",
+  "homepage": "https://github.com/OpenGov/pythia",
+  "description": "A charting library",
+  "private": true,
+  "ignore": [
+    "src",
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "vendor",
+    "doc",
+    "Gruntfile.js",
+    "README.md",
+    "package.json",
+    "test",
+    "tests"
+  ]
+}
