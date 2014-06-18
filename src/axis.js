@@ -76,8 +76,11 @@ module.exports = Class(Element, {
 
         for (i = 0; i < labels.length; ++i) {
           var text = labels[i];
-          this.add(Text(text, [position, y], textStyle));
+          var el = this.add(Text(text, [position, y], textStyle));
           position += stepSize;
+          el.axisIndex = i;
+          el.addClass('axisLabel');
+          el.addClass('axis_' + i);
         }
 
         var height = y + spacing;

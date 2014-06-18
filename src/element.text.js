@@ -10,6 +10,7 @@ module.exports = Class(Element, {
     (function (text, pos, style) {
       this._path  = ['F', text];
       this._style = style;
+      this._pos = pos;
       this.translate(pos);
 
     }).apply(this, this._args);

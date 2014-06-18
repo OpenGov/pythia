@@ -244,7 +244,6 @@ style['axis text'] = {
   yrelative:     'bottom',
   size:          'fixed',
   stroke:        false,
-  pointerEvents: 'none',
   baseline:      'bottom'
 };
 
