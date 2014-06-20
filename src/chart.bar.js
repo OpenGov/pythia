@@ -3,6 +3,7 @@
 var _ = require('lodash');
 
 var color = require('../src/color');
+var Style = require('../src/style');
 var Class = require('../src/class');
 var Element = require('../src/element');
 var Chart = require('../src/chart');
@@ -157,13 +158,9 @@ module.exports = Class(Chart, {
         }
 
         var color = lineColor(line, lineNo);
-        var style = {
-          color: color,
-          fillOpacity: 0.8,
-          strokeOpacity: 1,
-          strokeWidth: 0,
-          strokeColor: color
-        };
+        var type = line.types[key];
+        var style = Style({color: color, strokeColor: color}, self.elementTypeStyle('bar', type));
+
         if (value < 0) {
           style.fillOpacity = 0.01;
         }
@@ -175,7 +172,7 @@ module.exports = Class(Chart, {
         if (!bar) {
           var initialY = lineNo ? y + height : y;
           bar =
-            Rect([x,initialY], [xWidth, 1], style)
+            Rect([x,100], [xWidth, 1], style)
                 .addClass('bar')
                 .data(value, line, key, line.id);
           self.add(bar);

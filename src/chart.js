@@ -177,7 +177,19 @@ var Chart = module.exports = Class(Element, {
 
     return this.calcItemWidth(
       _.size(this._data._data), opts.width, opts.spacing, opts.margin);
+  },
+
+  elementTypeStyle: function (element, type) {
+    var elementStyle = this._opts.elementStyle[element],
+        typeStyle = elementStyle[type];
+
+    if (typeStyle) {
+      return typeStyle;
+    } else {
+      return elementStyle['default'];
+    }
   }
+
 });
 
 Chart.append('remove', function () {

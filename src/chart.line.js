@@ -346,18 +346,6 @@ module.exports = Class(Chart, {
     return this;
   },
 
-  elementTypeStyle: function (element, type) {
-      var elementStyle = this._opts.elementStyle[element],
-          typeStyle = elementStyle[type];
-
-      if (typeStyle) {
-        return typeStyle;
-      } else {
-        return elementStyle['default'];
-      }
-  },
-
-
   doEnter: function (lines, points, vertices, fills, fillBottom) {
       var length = vertices.length,
           self = this;
