@@ -252,7 +252,7 @@ style['axis text'] = {
   color:         0xcccccc,
   fontSize:      '14',
   position:      'fixed-horizontal',
-  fontFamily:    'Helvetica',
+  fontFamily:    'ProximaNova-Regular',
   yrelative:     'bottom',
   size:          'fixed',
   stroke:        false,
@@ -263,7 +263,7 @@ style['axis ytext'] = {
   color:         0xcccccc,
   fontSize:      '14',
   position:      'fixed-vertical',
-  fontFamily:    'Helvetica',
+  fontFamily:    'ProximaNova-Regular',
   size:          'fixed',
   stroke:        false,
   pointerEvents: 'none',
@@ -294,7 +294,7 @@ style.tooltip = {
 
 style['tooltip text'] = {
   color:         0xF9F9F9,
-  fontFamily:    'proxima-nova',
+  fontFamily:    'ProximaNova-Regular',
   fontSize:      '12',
   opacity:       1,
   pointerEvents: 'none',
