@@ -259,6 +259,17 @@ style['axis text'] = {
   baseline:      'bottom'
 };
 
+style['axis label'] = {
+  color:         0xcccccc,
+  fontSize:      '14',
+  position:      'fixed-horizontal',
+  fontFamily:    'ProximaNova-semiBold',
+  yrelative:     'bottom',
+  size:          'fixed',
+  stroke:        false,
+  baseline:      'bottom'
+};
+
 style['axis ytext'] = {
   color:         0xcccccc,
   fontSize:      '14',
@@ -268,6 +279,17 @@ style['axis ytext'] = {
   stroke:        false,
   pointerEvents: 'none',
   baseline:      'middle'
+};
+
+style['axis yLabel'] = {
+  color:         0xcccccc,
+  fontSize:      '14',
+  position:      'fixed-vertical',
+  fontFamily:    'ProximaNova-Semibold',
+  size:          'fixed',
+  stroke:        false,
+  pointerEvents: 'none',
+  baseline:      'top'
 };
 
 style.title = {
