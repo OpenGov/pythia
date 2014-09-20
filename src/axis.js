@@ -69,7 +69,7 @@ module.exports = Class(Element, {
         this.add(Text(
           options.label,
           [50, labelMeasure[1] + 2],
-          Style(options.labelStyle)
+          Style(textStyle)
         ));
 
         var y = tallest + spacing + labelMeasure[1];
@@ -101,7 +101,7 @@ module.exports = Class(Element, {
           }
         }
 
-        this.add(Text(options.label, [0, 40], Style(options.labelStyle)))
+        this.add(Text(options.label, [15, 40], Style(textYStyle)))
                 .rotate(Math.PI / 2);
         labelMeasure = util.measureText(options.label, options.labelStyle);
 
