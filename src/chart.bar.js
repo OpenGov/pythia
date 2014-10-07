@@ -173,10 +173,10 @@ module.exports = Class(Chart, {
           var initialY = lineNo ? y + height : y;
           bar =
             Rect([x,100], [xWidth, 1], style)
-                .addClass('bar')
-                .data(value, line, key, line.id);
+                .addClass('bar');
           self.add(bar);
         }
+        bar.data(value, line, key, line.id);
         bar._style = style;
         //self.cache([self.dataLineId(line)], 'bar', []);
 
